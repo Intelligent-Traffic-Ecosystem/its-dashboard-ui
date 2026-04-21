@@ -96,7 +96,7 @@ feature/* → dev
 
 * Ensure code is tested
 * Keep PR small and focused
-* Link PR to issue (if available)
+* Link PR to issue (recommended)
 
 ---
 
@@ -106,6 +106,49 @@ When features are stable and integrated:
 
 ```text
 dev → main
+```
+
+---
+
+# 🔗 Linking Pull Requests to Issues (Agile Practice)
+
+To maintain proper tracking and Agile workflow, every Pull Request should be linked to an Issue.
+
+## ✅ Method (Recommended)
+
+Add one of the following keywords in your PR description:
+
+```bash
+Closes #issue-number
+Fixes #issue-number
+Resolves #issue-number
+```
+
+### Example:
+
+```bash
+Closes #7 - Add traffic heatmap feature
+```
+
+---
+
+## 🎯 What this does:
+
+* Automatically links PR to the Issue
+* Automatically closes the Issue when PR is merged
+* Provides clear traceability for development
+
+---
+
+## 🧪 Example PR Description
+
+```text
+Closes #7
+
+### Changes:
+- Added traffic heatmap using Mapbox
+- Integrated real-time data updates
+- Improved UI responsiveness
 ```
 
 ---
