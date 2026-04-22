@@ -118,6 +118,11 @@
   100% { background-color: #93000a; }
 }
 
+/* Map gradient overlay */
+.map-gradient-overlay {
+  background: radial-gradient(circle at center, transparent 0%, rgba(16, 19, 26, 0.4) 100%);
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #10131a; }
