@@ -108,7 +108,17 @@
   user-select: none;
 }
 
+/* Critical alert pulse animation */
+.critical-pulse {
+  animation: pulse-red 2s infinite;
+}
+@keyframes pulse-red {
+  0%   { background-color: #93000a; }
+  50%  { background-color: #690005; }
+  100% { background-color: #93000a; }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: #10131a; }
-::-webkit-scrollbar-thumb { background: #32353c; }
+::-webkit-scrollbar-thumb { background: #424754; border-radius: 10px; }
