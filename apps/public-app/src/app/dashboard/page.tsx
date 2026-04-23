@@ -3,21 +3,25 @@ import { StatsRow } from "@/components/dashboard/StatsRow";
 import { RoadSegmentsTable } from "@/components/dashboard/RoadSegmentsTable";
 import { TrafficVolumeChart } from "@/components/dashboard/TrafficVolumeChart";
 import { RecentIncidents } from "@/components/dashboard/RecentIncidents";
+import { DashboardStaleBanner } from "@/components/dashboard/DashboardStaleBanner";
 import { LiveIndicator } from "@/components/ui/LiveIndicator";
 
 export default function DashboardPage() {
   return (
     <PageShell
       title="Traffic Overview"
-      subtitle="Real-time system status across all monitored corridors"
+      subtitle="Real-time conditions — Colombo Metropolitan Area"
       actions={<LiveIndicator />}
     >
-      <div className="space-y-6">
+      <div className="space-y-5">
+        {/* Stale data warning — shows after 30s without update */}
+        <DashboardStaleBanner />
+
         {/* KPI row */}
         <StatsRow />
 
         {/* Chart + incidents split */}
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
           <div className="xl:col-span-3">
             <TrafficVolumeChart />
           </div>

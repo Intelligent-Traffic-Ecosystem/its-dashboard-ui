@@ -3,29 +3,32 @@ import { AlertTriangle } from "lucide-react";
 interface StaleBannerProps {
   /** Age of data in seconds */
   ageSeconds: number;
-  /** Seconds after which the banner is shown (default 120 = 2 min) */
+  /** Seconds after which the banner is shown (default 30) */
   threshold?: number;
   className?: string;
 }
 
 export function StaleBanner({
   ageSeconds,
-  threshold = 120,
+  threshold = 30,
   className = "",
 }: StaleBannerProps) {
   if (ageSeconds < threshold) return null;
 
-  const minutes = Math.floor(ageSeconds / 60);
-
   return (
     <div
-      className={`flex items-center gap-2.5 rounded-lg bg-amber-500/10 ring-1 ring-amber-500/30 px-4 py-2.5 text-sm text-amber-400 ${className}`}
+      className={`fade-in flex items-center gap-2.5 rounded-lg px-4 py-2.5 text-sm transition-opacity ${className}`}
+      style={{
+        background: "rgba(209,105,0,0.12)",
+        border: "1px solid #D16900",
+        color: "#D16900",
+        fontFamily: "var(--font-inter)",
+      }}
     >
-      <AlertTriangle size={15} className="shrink-0" />
+      <AlertTriangle size={14} className="shrink-0" />
       <span>
-        Data may be stale — last updated{" "}
-        <strong>{minutes} minute{minutes !== 1 ? "s" : ""}</strong> ago. Refresh
-        to see the latest.
+        Data may be stale — last update{" "}
+        <strong>{ageSeconds}s ago</strong>. Refresh to see the latest.
       </span>
     </div>
   );

@@ -14,8 +14,17 @@ interface IncidentFiltersProps {
   onType: (v: IncidentType | "all") => void;
 }
 
-const selectCls =
-  "rounded-lg bg-zinc-900 ring-1 ring-zinc-700 px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:ring-cyan-500 cursor-pointer";
+const selectStyle: React.CSSProperties = {
+  background: "#1A1D27",
+  border: "1px solid rgba(255,255,255,0.10)",
+  color: "#d4d4d8",
+  borderRadius: "8px",
+  padding: "8px 12px",
+  fontSize: "13px",
+  outline: "none",
+  fontFamily: "var(--font-inter)",
+  appearance: "auto",
+};
 
 export function IncidentFilters({
   search,
@@ -33,22 +42,37 @@ export function IncidentFilters({
       <div className="relative flex-1 min-w-[200px]">
         <Search
           size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
+          className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+          style={{ color: "#757780" }}
         />
         <input
           type="text"
           placeholder="Search location or description…"
           value={search}
           onChange={(e) => onSearch(e.target.value)}
-          className="w-full rounded-lg bg-zinc-900 ring-1 ring-zinc-700 pl-8 pr-3 py-2 text-sm text-zinc-300 placeholder-zinc-600 focus:outline-none focus:ring-cyan-500"
+          style={{
+            width: "100%",
+            background: "#1A1D27",
+            border: "1px solid rgba(255,255,255,0.10)",
+            borderRadius: "8px",
+            paddingLeft: "2rem",
+            paddingRight: "0.75rem",
+            paddingTop: "0.5rem",
+            paddingBottom: "0.5rem",
+            fontSize: "13px",
+            color: "#d4d4d8",
+            outline: "none",
+            fontFamily: "var(--font-inter)",
+          }}
+          className="placeholder:text-neutral focus:ring-1 focus:ring-primary"
         />
       </div>
 
-      {/* Severity */}
+      {/* Severity filter */}
       <select
         value={severity}
         onChange={(e) => onSeverity(e.target.value as Severity | "all")}
-        className={selectCls}
+        style={selectStyle}
       >
         <option value="all">All Severities</option>
         <option value="critical">Critical</option>
@@ -57,11 +81,11 @@ export function IncidentFilters({
         <option value="low">Low</option>
       </select>
 
-      {/* Status */}
+      {/* Status filter */}
       <select
         value={status}
         onChange={(e) => onStatus(e.target.value as IncidentStatus | "all")}
-        className={selectCls}
+        style={selectStyle}
       >
         <option value="all">All Statuses</option>
         <option value="active">Active</option>
@@ -69,11 +93,11 @@ export function IncidentFilters({
         <option value="resolved">Resolved</option>
       </select>
 
-      {/* Type */}
+      {/* Type filter */}
       <select
         value={type}
         onChange={(e) => onType(e.target.value as IncidentType | "all")}
-        className={selectCls}
+        style={selectStyle}
       >
         <option value="all">All Types</option>
         <option value="accident">Accident</option>

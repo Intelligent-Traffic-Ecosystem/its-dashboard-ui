@@ -30,8 +30,14 @@ export function LayerToggles() {
   };
 
   return (
-    <div className="rounded-xl bg-zinc-900 ring-1 ring-zinc-800 p-4">
-      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">
+    <div
+      className="rounded-xl p-4"
+      style={{ background: "#1A1D27", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      <p
+        className="text-[10px] font-semibold uppercase tracking-widest mb-3"
+        style={{ color: "#757780" }}
+      >
         Layers
       </p>
       <div className="flex flex-col gap-2">
@@ -41,20 +47,22 @@ export function LayerToggles() {
             <button
               key={layer.id}
               onClick={() => toggle(layer.id)}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-left ${
-                on
-                  ? "bg-cyan-500/10 text-cyan-400 ring-1 ring-cyan-500/20"
-                  : "text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
-              }`}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-left"
+              style={{
+                background: on ? "rgba(59,130,246,0.08)" : "transparent",
+                color: on ? "#4CD7F6" : "#757780",
+                border: on ? "1px solid rgba(59,130,246,0.20)" : "1px solid transparent",
+                fontFamily: "var(--font-inter)",
+              }}
             >
               {layer.icon}
               {layer.label}
               <span
-                className={`ml-auto text-xs px-1.5 py-0.5 rounded font-medium ${
-                  on
-                    ? "bg-cyan-500/20 text-cyan-400"
-                    : "bg-zinc-800 text-zinc-600"
-                }`}
+                className="ml-auto text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide"
+                style={{
+                  background: on ? "rgba(76,215,246,0.15)" : "rgba(255,255,255,0.06)",
+                  color: on ? "#4CD7F6" : "#757780",
+                }}
               >
                 {on ? "ON" : "OFF"}
               </span>

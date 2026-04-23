@@ -9,23 +9,35 @@ export function SummaryPills() {
   const monitoring = INCIDENTS.filter((i) => i.status === "monitoring").length;
   const resolved = INCIDENTS.filter((i) => i.status === "resolved").length;
 
-  const pills = [
-    { label: "Total", value: total, cls: "bg-zinc-800 text-zinc-300 ring-zinc-700" },
-    { label: "Active", value: active, cls: "bg-red-500/10 text-red-400 ring-red-500/20" },
-    { label: "Critical", value: critical, cls: "bg-orange-500/10 text-orange-400 ring-orange-500/20" },
-    { label: "Monitoring", value: monitoring, cls: "bg-yellow-500/10 text-yellow-400 ring-yellow-500/20" },
-    { label: "Resolved", value: resolved, cls: "bg-emerald-500/10 text-emerald-400 ring-emerald-500/20" },
+  const pills: { label: string; value: number; bg: string; color: string }[] = [
+    { label: "Total",      value: total,      bg: "rgba(255,255,255,0.06)", color: "#d4d4d8" },
+    { label: "Active",     value: active,     bg: "rgba(239,68,68,0.12)",   color: "#EF4444" },
+    { label: "Critical",   value: critical,   bg: "rgba(209,105,0,0.12)",   color: "#D16900" },
+    { label: "Monitoring", value: monitoring, bg: "rgba(245,158,11,0.12)",  color: "#F59E0B" },
+    { label: "Resolved",   value: resolved,   bg: "rgba(34,197,94,0.12)",   color: "#22C55E" },
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {pills.map(({ label, value, cls }) => (
+    <div className="flex flex-wrap gap-2.5">
+      {pills.map(({ label, value, bg, color }) => (
         <div
           key={label}
-          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 ring-1 text-sm font-medium ${cls}`}
+          className="flex items-center gap-2 rounded-full px-4 py-2"
+          style={{
+            background: bg,
+            border: `1px solid ${color}30`,
+            fontFamily: "var(--font-inter)",
+          }}
         >
-          <span>{label}</span>
-          <span className="tabular-nums font-bold">{value}</span>
+          <span className="text-sm font-medium" style={{ color: "#a0a0a8" }}>
+            {label}
+          </span>
+          <span
+            className="text-sm font-bold tabular-nums"
+            style={{ color }}
+          >
+            {value}
+          </span>
         </div>
       ))}
     </div>
