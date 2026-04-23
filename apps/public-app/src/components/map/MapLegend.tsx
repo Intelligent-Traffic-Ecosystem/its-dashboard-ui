@@ -1,40 +1,60 @@
-const LEGEND_ITEMS = [
-  { label: "Free flow", color: "bg-emerald-500", range: "< 40%" },
-  { label: "Moderate", color: "bg-yellow-500", range: "40–60%" },
-  { label: "Heavy", color: "bg-orange-500", range: "60–80%" },
-  { label: "Standstill", color: "bg-red-500", range: "> 80%" },
+const CONGESTION_ITEMS = [
+  { label: "Free flow",  color: "#22C55E", range: "< 40%" },
+  { label: "Moderate",   color: "#F59E0B", range: "40–60%" },
+  { label: "Heavy",      color: "#D16900", range: "60–80%" },
+  { label: "Standstill", color: "#EF4444", range: "> 80%" },
+];
+
+const INCIDENT_MARKERS = [
+  { dot: "#EF4444", label: "Critical / Active" },
+  { dot: "#D16900", label: "Warning / Heavy" },
+  { dot: "#F59E0B", label: "Monitoring" },
+  { dot: "#3B82F6", label: "Info / Roadwork" },
 ];
 
 export function MapLegend() {
   return (
-    <div className="rounded-xl bg-zinc-900 ring-1 ring-zinc-800 p-4">
-      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">
+    <div
+      className="rounded-xl p-4"
+      style={{ background: "#1A1D27", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      <p
+        className="text-[10px] font-semibold uppercase tracking-widest mb-3"
+        style={{ color: "#757780" }}
+      >
         Congestion
       </p>
-      <div className="flex flex-col gap-2">
-        {LEGEND_ITEMS.map(({ label, color, range }) => (
+      <div className="flex flex-col gap-2 mb-4">
+        {CONGESTION_ITEMS.map(({ label, color, range }) => (
           <div key={label} className="flex items-center gap-2.5">
-            <span className={`size-3 rounded-sm shrink-0 ${color}`} />
-            <span className="text-sm text-zinc-300">{label}</span>
-            <span className="ml-auto text-xs text-zinc-600 tabular-nums">
+            <span
+              className="size-3 rounded-sm shrink-0"
+              style={{ background: color }}
+            />
+            <span className="text-sm text-white" style={{ fontFamily: "var(--font-inter)" }}>{label}</span>
+            <span className="ml-auto text-xs tabular-nums" style={{ color: "#757780" }}>
               {range}
             </span>
           </div>
         ))}
       </div>
-      <div className="mt-4 pt-3 border-t border-zinc-800">
-        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">
-          Incident markers
+
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px" }}>
+        <p
+          className="text-[10px] font-semibold uppercase tracking-widest mb-2.5"
+          style={{ color: "#757780" }}
+        >
+          Incident Markers
         </p>
-        {[
-          { dot: "bg-red-500", label: "Critical / Active" },
-          { dot: "bg-orange-500", label: "High severity" },
-          { dot: "bg-yellow-500", label: "Medium / Monitoring" },
-          { dot: "bg-blue-500", label: "Low / Roadwork" },
-        ].map(({ dot, label }) => (
-          <div key={label} className="flex items-center gap-2.5 mb-1.5">
-            <span className={`size-2.5 rounded-full shrink-0 ${dot}`} />
-            <span className="text-xs text-zinc-400">{label}</span>
+        {INCIDENT_MARKERS.map(({ dot, label }) => (
+          <div key={label} className="flex items-center gap-2.5 mb-2">
+            <span
+              className="size-2.5 rounded-full shrink-0"
+              style={{ background: dot }}
+            />
+            <span className="text-xs" style={{ color: "#a0a0a8", fontFamily: "var(--font-inter)" }}>
+              {label}
+            </span>
           </div>
         ))}
       </div>

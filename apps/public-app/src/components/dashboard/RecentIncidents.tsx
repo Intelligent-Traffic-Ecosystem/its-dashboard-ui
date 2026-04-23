@@ -11,6 +11,13 @@ function timeAgo(isoString: string): string {
   return `${hours}h ago`;
 }
 
+const SEVERITY_DOT: Record<string, string> = {
+  critical: "#EF4444",
+  high: "#EF4444",
+  medium: "#D16900",
+  low: "#3B82F6",
+};
+
 export function RecentIncidents() {
   const recent = INCIDENTS.filter((i) => i.status !== "resolved")
     .sort(
@@ -20,42 +27,69 @@ export function RecentIncidents() {
     .slice(0, 6);
 
   return (
-    <div className="rounded-xl bg-zinc-900 ring-1 ring-zinc-800 overflow-hidden">
-      <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{ background: "#1A1D27", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      <div
+        className="px-5 py-4 flex items-center justify-between"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+      >
         <div>
-          <h2 className="text-sm font-semibold text-white">Recent Incidents</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">
-            Latest active &amp; monitored events
+          <h2
+            className="text-[17px] font-semibold text-white"
+            style={{ fontFamily: "var(--font-space-grotesk)" }}
+          >
+            Recent Incidents
+          </h2>
+          <p className="text-xs mt-0.5" style={{ color: "#757780" }}>
+            Read-only · Updated live
           </p>
         </div>
         <Link
           href="/incidents"
-          className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+          className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-70"
+          style={{ color: "#3B82F6" }}
         >
-          View all <ArrowRight size={13} />
+          View all <ArrowRight size={12} />
         </Link>
       </div>
-      <ul className="divide-y divide-zinc-800/50">
-        {recent.map((inc) => (
+
+      <ul>
+        {recent.map((inc, i) => (
           <li
             key={inc.id}
-            className="px-5 py-3.5 flex items-start gap-3 hover:bg-zinc-800/30 transition-colors"
+            className="px-5 py-3.5 flex items-start gap-3 hover:bg-white/2 transition-colors"
+            style={{
+              borderBottom:
+                i < recent.length - 1
+                  ? "1px solid rgba(255,255,255,0.04)"
+                  : "none",
+            }}
           >
+            <span
+              className="mt-1.5 size-2 rounded-full shrink-0"
+              style={{ background: SEVERITY_DOT[inc.severity] ?? "#757780" }}
+            />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-mono text-zinc-500">
-                  {inc.id}
+                <span
+                  className="text-[13px] font-semibold text-white"
+                  style={{ fontFamily: "var(--font-inter)" }}
+                >
+                  {inc.type.charAt(0).toUpperCase() + inc.type.slice(1)}
                 </span>
-                <Badge variant={inc.severity} />
-                <Badge variant={inc.type} />
+                <Badge variant={inc.status} />
               </div>
-              <p className="mt-1 text-sm text-zinc-300 truncate">
+              <p className="mt-0.5 text-xs truncate" style={{ color: "#757780" }}>
                 {inc.location}
               </p>
-              <p className="text-xs text-zinc-500 truncate">{inc.description}</p>
             </div>
-            <div className="flex items-center gap-1 text-xs text-zinc-600 shrink-0 mt-0.5">
-              <Clock size={11} />
+            <div
+              className="flex items-center gap-1 text-[10px] shrink-0 mt-0.5"
+              style={{ color: "#757780" }}
+            >
+              <Clock size={10} />
               {timeAgo(inc.reportedAt)}
             </div>
           </li>

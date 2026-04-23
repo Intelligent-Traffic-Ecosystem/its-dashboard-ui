@@ -8,19 +8,24 @@ import { LiveIndicator } from "@/components/ui/LiveIndicator";
 export default function MapPage() {
   return (
     <PageShell
-      title="Live Map"
+      title="Live Traffic Map"
       subtitle="Geospatial view of active incidents and congestion heatmap"
       actions={<LiveIndicator />}
     >
-      <div className="flex gap-4 h-[calc(100vh-10rem)]">
-        {/* Left controls */}
-        <div className="w-52 shrink-0 flex flex-col gap-4">
-          <LayerToggles />
-          <MapLegend />
+      {/* Mobile: map on top, controls below as horizontal scroll */}
+      <div className="flex flex-col gap-4 md:flex-row md:h-[calc(100vh-10rem)]">
+        {/* Left controls — desktop sidebar, mobile horizontal scroll */}
+        <div className="flex flex-row gap-3 overflow-x-auto pb-1 scrollbar-thin md:flex-col md:w-52 md:shrink-0 md:overflow-x-visible md:pb-0">
+          <div className="min-w-[200px] md:min-w-0">
+            <LayerToggles />
+          </div>
+          <div className="min-w-[200px] md:min-w-0">
+            <MapLegend />
+          </div>
         </div>
 
         {/* Map area */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 min-h-[400px] md:min-h-0">
           <MapPlaceholder className="h-full" />
           <IncidentPopup />
         </div>

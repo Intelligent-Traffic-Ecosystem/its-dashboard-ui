@@ -18,21 +18,26 @@ export function PageShell({
     <>
       <TopNav />
       <Sidebar />
-      {/* Offset for fixed top nav (h-14) and sidebar (w-56) */}
-      <main className="ml-56 mt-14 min-h-[calc(100vh-3.5rem)] bg-zinc-950 p-6">
+      {/* Offset: fixed top nav (h-14) + desktop sidebar (md:ml-56) + mobile tab bar (pb-16) */}
+      <main className="mt-14 md:ml-56 min-h-[calc(100vh-3.5rem)] pb-16 md:pb-0 p-4 md:p-6" style={{ background: "#0F1117" }}>
         {(title || actions) && (
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               {title && (
-                <h1 className="text-xl font-bold text-white tracking-tight">
+                <h1
+                  className="text-2xl md:text-3xl font-bold text-white tracking-tight"
+                  style={{ fontFamily: "var(--font-space-grotesk)" }}
+                >
                   {title}
                 </h1>
               )}
               {subtitle && (
-                <p className="mt-0.5 text-sm text-zinc-500">{subtitle}</p>
+                <p className="mt-1 text-sm" style={{ color: "#757780" }}>
+                  {subtitle}
+                </p>
               )}
             </div>
-            {actions && <div className="flex items-center gap-2">{actions}</div>}
+            {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
           </div>
         )}
         {children}
