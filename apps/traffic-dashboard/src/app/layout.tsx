@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
+import TopNavBar from "@/components/layout/TopNavBar";
+import SideNavBar from "@/components/layout/SideNavBar";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -34,6 +36,9 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background text-on-surface font-body-md text-body-md min-h-screen">
+        {/* Shared nav — rendered once at the layout level for all routes */}
+        <TopNavBar />
+        <SideNavBar />
         {children}
       </body>
     </html>
