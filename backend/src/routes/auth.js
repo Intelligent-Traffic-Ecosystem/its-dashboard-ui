@@ -117,7 +117,7 @@ router.post("/logout", (req, res) => {
  *     tags:
  *       - Auth
  *     security:
- *       - bearerAuth: []
+ *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: Valid session
