@@ -151,10 +151,15 @@ async function validateAccessToken(token) {
     throw new Error("token_expired");
   }
 
-  if (
-    audience.length > 0 &&
-    !audience.includes(process.env.KEYCLOAK_CLIENT_ID)
-  ) {
+  // Keycloak access tokens may carry the client ID in the `aud` array, in `azp` (authorized
+  // party), or both. Accept the token if either claim matches the expected client ID; reject
+  // it if neither is present or if neither matches.
+  const expectedClientId = process.env.KEYCLOAK_CLIENT_ID;
+  const audienceValid =
+    audience.includes(expectedClientId) ||
+    tokenParts.payload.azp === expectedClientId;
+
+  if (!audienceValid) {
     throw new Error("invalid_audience");
   }
 
