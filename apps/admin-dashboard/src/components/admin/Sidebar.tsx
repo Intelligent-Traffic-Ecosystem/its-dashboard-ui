@@ -11,22 +11,22 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Overview", icon: "dashboard", href: "/admin" },
-  { label: "Live Map", icon: "map", href: "/admin/map" },
-  { label: "Alerts", icon: "notifications_active", href: "/admin/alerts" },
-  { label: "Analytics", icon: "analytics", href: "/admin/analytics" },
-  { label: "Alert Configuration", icon: "settings_input_component", href: "/admin/alert-config" },
-  { label: "Zone Management", icon: "layers", href: "/admin/zones" },
-  { label: "Broadcast Message", icon: "campaign", href: "/admin/broadcast", fillWhenActive: true },
-  { label: "Active Sessions", icon: "supervised_user_circle", href: "/admin/sessions", fillWhenActive: true },
-  { label: "Settings", icon: "settings", href: "/admin/settings" },
+  { label: "Overview", icon: "dashboard", href: "/" },
+  { label: "Live Map", icon: "map", href: "/map" },
+  { label: "Alerts", icon: "notifications_active", href: "/alerts" },
+  { label: "Analytics", icon: "analytics", href: "/analytics" },
+  { label: "Alert Configuration", icon: "settings_input_component", href: "/alert-config" },
+  { label: "Zone Management", icon: "layers", href: "/zones" },
+  { label: "Broadcast Message", icon: "campaign", href: "/broadcast", fillWhenActive: true },
+  { label: "Active Sessions", icon: "supervised_user_circle", href: "/sessions", fillWhenActive: true },
+  { label: "Settings", icon: "settings", href: "/settings" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   const isActive = (href: string) => {
-    if (href === "/admin") return pathname === "/admin";
+    if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
   };
 
