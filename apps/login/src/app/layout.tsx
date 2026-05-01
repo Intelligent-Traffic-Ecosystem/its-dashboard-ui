@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
-import AuthGate from "@/components/auth/AuthGate";
-import TopNavBar from "@/components/layout/TopNavBar";
-import SideNavBar from "@/components/layout/SideNavBar";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -18,18 +16,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TRAFFIC_OPS AI",
-  description: "Traffic Operations AI Dashboard – District 4 Metro",
+  title: "ITS Portal – Sign In",
+  description: "Intelligent Traffic System – Secure Sign In",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{ children: ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`dark ${spaceGrotesk.variable} ${inter.variable}`}
-    >
+    <html lang="en" className={`dark ${spaceGrotesk.variable} ${inter.variable}`}>
       <head>
         <link
           rel="stylesheet"
@@ -37,12 +32,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-background text-on-surface font-body-md text-body-md min-h-screen">
-        <AuthGate>
-          {/* Shared nav — rendered once at the layout level for all routes */}
-          <TopNavBar />
-          <SideNavBar />
-          {children}
-        </AuthGate>
+        {children}
       </body>
     </html>
   );
