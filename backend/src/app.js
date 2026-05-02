@@ -7,7 +7,19 @@ const swaggerUi = require("swagger-ui-express");
 
 const authRoutes = require("./routes/auth");
 const locationRoutes = require("./routes/locations");
+const createTrafficRouter = require("./routes/traffic");
+const createAnalyticsRouter = require("./routes/analytics");
+const createAlertsRouter = require("./routes/alerts");
+const createHealthRouter = require("./routes/health");
+const requireAuth = require("./middleware/requireAuth");
+const errorHandler = require("./middleware/errorHandler");
 const swaggerSpec = require("./swagger");
+const {
+  trafficService,
+  analyticsService,
+  alertService,
+  healthService,
+} = require("./services");
 
 const app = express();
 
@@ -21,24 +33,33 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/locations", locationRoutes);
-
-/**
- * @openapi
- * /health:
- *   get:
- *     summary: Health check
- *     tags:
- *       - System
- *     responses:
- *       200:
- *         description: Service is healthy
- */
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", service: "b3-dashboard-backend" });
-});
+app.use(
+  "/api/traffic",
+  createTrafficRouter({
+    trafficService,
+    requireAuth,
+  })
+);
+app.use(
+  "/api/analytics",
+  createAnalyticsRouter({
+    analyticsService,
+    requireAuth,
+  })
+);
+app.use(
+  "/api/alerts",
+  createAlertsRouter({
+    alertService,
+    requireAuth,
+  })
+);
+app.use("/health", createHealthRouter({ healthService }));
 
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Welcome to the B3 Dashboard Backend API" });
 });
+
+app.use(errorHandler);
 
 module.exports = app;

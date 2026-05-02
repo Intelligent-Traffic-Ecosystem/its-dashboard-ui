@@ -1,9 +1,34 @@
 services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-traffic}
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass}
+    volumes:
+      - b3_pgdata:/var/lib/postgresql/data
+
+  b2-api:
+    build:
+      context: ../b2-data
+      dockerfile: docker/Dockerfile.api
+    depends_on:
+      - postgres
+    ports:
+      - "${B2_API_PORT:-8000}:8000"
+    environment:
+      POSTGRES_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-pass}@postgres:5432/${POSTGRES_DB:-traffic}
+    restart: on-failure
+
   b3-backend:
     image: ${B3_BACKEND_IMAGE:-its-b3-backend:latest}
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
+    depends_on:
+      - b2-api
     ports:
       - "${B3_BACKEND_PORT:-5000}:5000"
     environment:
@@ -19,6 +44,11 @@ services:
       LOGIN_APP_URL: ${LOGIN_APP_URL:-http://localhost:3003}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3003}
       SWAGGER_SERVER_URL: ${SWAGGER_SERVER_URL:-http://localhost:5000}
+      B2_API_BASE_URL: ${B2_API_BASE_URL:-http://b2-api:8000}
+      B2_WS_URL: ${B2_WS_URL:-ws://b2-api:8000/ws/metrics}
+      B2_REQUEST_TIMEOUT_MS: ${B2_REQUEST_TIMEOUT_MS:-5000}
+      B2_WS_RECONNECT_MS: ${B2_WS_RECONNECT_MS:-3000}
+      TRAFFIC_STALE_AFTER_SECONDS: ${TRAFFIC_STALE_AFTER_SECONDS:-30}
     restart: on-failure
 
   b3-traffic-dashboard:
@@ -60,3 +90,6 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       BACKEND_URL: ${BACKEND_URL:-http://localhost:5000}
     restart: on-failure
+
+volumes:
+  b3_pgdata:
