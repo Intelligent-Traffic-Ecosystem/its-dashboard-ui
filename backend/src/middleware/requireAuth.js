@@ -167,6 +167,16 @@ async function validateAccessToken(token) {
 }
 
 async function requireAuth(req, res, next) {
+  if (process.env.DEV_BYPASS_AUTH === "true") {
+    req.user = {
+      sub: "dev-user",
+      preferred_username: "dev_operator",
+      email: "dev@its.local",
+      realm_access: { roles: ["operator"] },
+    };
+    return next();
+  }
+
   const accessToken = req.cookies?.access_token;
   const refreshToken = req.cookies?.refresh_token;
 

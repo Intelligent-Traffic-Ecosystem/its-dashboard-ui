@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 const swaggerUi = require("swagger-ui-express");
 
 const authRoutes = require("./routes/auth");
+const locationRoutes = require("./routes/locations");
 const swaggerSpec = require("./swagger");
 
 const app = express();
@@ -19,6 +20,7 @@ app.use(morgan("dev"));
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/locations", locationRoutes);
 
 /**
  * @openapi

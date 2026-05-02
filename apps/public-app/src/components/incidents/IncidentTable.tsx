@@ -139,9 +139,11 @@ export function IncidentTable({ incidents }: IncidentTableProps) {
             </div>
 
             {/* Bottom row: status + time + lanes */}
-            <div className="flex items-center justify-between">
-              <Badge variant={inc.status} />
-              <div className="flex items-center gap-3 text-xs" style={{ color: "#757780" }}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="self-start">
+                <Badge variant={inc.status} />
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: "#757780" }}>
                 {inc.affectedLanes > 0 && (
                   <span>{inc.affectedLanes} lane{inc.affectedLanes > 1 ? "s" : ""}</span>
                 )}

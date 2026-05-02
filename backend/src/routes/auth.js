@@ -198,6 +198,25 @@ router.get("/callback", async (req, res) => {
  *                   type: boolean
  *                   example: true
  */
+// GET /api/auth/dev-login  — DEVELOPMENT ONLY, bypasses Keycloak entirely
+// Only active when DEV_BYPASS_AUTH=true; returns 404 in production.
+router.get("/dev-login", (req, res) => {
+  if (process.env.DEV_BYPASS_AUTH !== "true") {
+    return res.status(404).json({ error: "not_found" });
+  }
+
+  const isProd = process.env.NODE_ENV === "production";
+  res.cookie("access_token", "dev-bypass-token", {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 8 * 60 * 60 * 1000, // 8 hours
+  });
+
+  return res.redirect(process.env.TRAFFIC_DASHBOARD_URL);
+});
+
 // POST /api/auth/logout
 router.post("/logout", (req, res) => {
   res.clearCookie("access_token", { path: "/" });

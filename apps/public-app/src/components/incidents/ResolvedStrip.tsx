@@ -34,7 +34,7 @@ export function ResolvedStrip() {
         {resolved.map((inc) => (
           <div
             key={inc.id}
-            className="shrink-0 w-60 rounded-xl p-4 flex flex-col gap-2.5"
+            className="flex w-[min(16rem,85vw)] shrink-0 flex-col gap-2.5 rounded-xl p-4 sm:w-60"
             style={{
               background: "#1A1D27",
               border: "1px solid rgba(255,255,255,0.08)",

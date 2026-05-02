@@ -29,7 +29,7 @@ export function IncidentPopup({ incident: injected }: IncidentPopupProps) {
 
   return (
     <div
-      className="absolute top-4 right-4 z-20 w-72 rounded-xl shadow-2xl overflow-hidden"
+      className="absolute left-3 right-3 top-3 z-20 overflow-hidden rounded-xl shadow-2xl md:left-auto md:right-4 md:top-4 md:w-72"
       style={{
         background: "rgba(26,29,39,0.96)",
         border: "1px solid rgba(255,255,255,0.10)",
@@ -41,13 +41,13 @@ export function IncidentPopup({ incident: injected }: IncidentPopupProps) {
         className="flex items-start justify-between px-4 pt-3.5 pb-2.5"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
       >
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 pr-3">
           <Badge variant={incident.severity} />
           <Badge variant={incident.type} />
         </div>
         <button
           onClick={() => setDismissed(true)}
-          className="transition-opacity hover:opacity-60"
+          className="shrink-0 transition-opacity hover:opacity-60"
           style={{ color: "#757780" }}
           aria-label="Dismiss"
         >
@@ -75,7 +75,7 @@ export function IncidentPopup({ incident: injected }: IncidentPopupProps) {
         </p>
 
         <div
-          className="flex items-center gap-3 pt-0.5 text-xs"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-0.5 text-xs"
           style={{ color: "#757780" }}
         >
           <span className="flex items-center gap-1">
