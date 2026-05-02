@@ -1,0 +1,62 @@
+services:
+  b3-backend:
+    image: ${B3_BACKEND_IMAGE:-its-b3-backend:latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    ports:
+      - "${B3_BACKEND_PORT:-5000}:5000"
+    environment:
+      PORT: 5000
+      NODE_ENV: ${NODE_ENV:-production}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-its-realm}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-b3-dashboard}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-change-me}
+      KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI:-http://localhost:5000/api/auth/callback}
+      ADMIN_DASHBOARD_URL: ${ADMIN_DASHBOARD_URL:-http://localhost:3001}
+      TRAFFIC_DASHBOARD_URL: ${TRAFFIC_DASHBOARD_URL:-http://localhost:3000}
+      LOGIN_APP_URL: ${LOGIN_APP_URL:-http://localhost:3003}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001,http://localhost:3003}
+      SWAGGER_SERVER_URL: ${SWAGGER_SERVER_URL:-http://localhost:5000}
+    restart: on-failure
+
+  b3-traffic-dashboard:
+    image: ${B3_TRAFFIC_DASHBOARD_IMAGE:-its-b3-traffic-dashboard:latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.traffic-dashboard
+      args:
+        NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:5000}
+        NEXT_PUBLIC_LOGIN_APP_URL: ${NEXT_PUBLIC_LOGIN_APP_URL:-http://localhost:3003}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_ID: ${NEXT_PUBLIC_GOOGLE_MAPS_ID:-}
+    depends_on:
+      - b3-backend
+    ports:
+      - "${B3_TRAFFIC_DASHBOARD_PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL:-http://localhost:5000}
+      NEXT_PUBLIC_LOGIN_APP_URL: ${NEXT_PUBLIC_LOGIN_APP_URL:-http://localhost:3003}
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+      NEXT_PUBLIC_GOOGLE_MAPS_ID: ${NEXT_PUBLIC_GOOGLE_MAPS_ID:-}
+    restart: on-failure
+
+  b3-login:
+    image: ${B3_LOGIN_IMAGE:-its-b3-login:latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.login
+      args:
+        BACKEND_URL: ${BACKEND_URL:-http://localhost:5000}
+    depends_on:
+      - b3-backend
+    ports:
+      - "${B3_LOGIN_PORT:-3003}:3003"
+    environment:
+      PORT: 3003
+      NODE_ENV: ${NODE_ENV:-production}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:5000}
+    restart: on-failure
