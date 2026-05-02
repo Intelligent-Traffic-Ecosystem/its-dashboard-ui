@@ -13,7 +13,7 @@ interface MapPlaceholderProps {
 export function MapPlaceholder({ className = "" }: MapPlaceholderProps) {
   return (
     <div
-      className={`relative flex-1 min-h-[500px] rounded-xl overflow-hidden ${className}`}
+      className={`relative flex-1 min-h-[320px] rounded-xl overflow-hidden sm:min-h-[500px] ${className}`}
       style={{ background: "#0A0E1A", border: "1px solid rgba(255,255,255,0.08)" }}
     >
       {/* Subtle grid overlay simulating map tiles */}

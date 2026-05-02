@@ -92,12 +92,14 @@ export function RoadSegmentsTable() {
       <div className="md:hidden divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
         {ROAD_SEGMENTS.map((seg) => (
           <div key={seg.id} className="px-4 py-4 space-y-3">
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <span className="text-sm font-medium text-white leading-snug">{seg.name}</span>
-              <Badge variant={seg.level} />
+              <div className="self-start">
+                <Badge variant={seg.level} />
+              </div>
             </div>
             <ProgressBar value={seg.congestionPct} showLabel />
-            <div className="flex items-center justify-between text-xs" style={{ color: "#757780" }}>
+            <div className="flex flex-col gap-1.5 text-xs sm:flex-row sm:items-center sm:justify-between" style={{ color: "#757780" }}>
               <span>
                 Avg speed:{" "}
                 <span className="font-semibold" style={{ color: speedColor(seg.avgSpeedKmh) }}>

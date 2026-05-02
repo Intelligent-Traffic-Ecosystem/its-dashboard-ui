@@ -1,160 +1,144 @@
-# Docker Guide — B3 Dashboard
+# B3 Dashboard Docker Image Guide
 
-## Services
+DevOps should build and deploy three separate Docker images for the B3 dashboard module. Docker Compose is not required for deployment.
 
-| Service | Port | Description |
-|---|---|---|
-| `backend` | `5000` | Express API + Socket.IO |
-| `login` | `3003` | Next.js login app (Keycloak OIDC) |
-| `traffic-dashboard` | `3000` | Next.js traffic operator dashboard |
+| Component | Dockerfile | Default image | Port |
+| --- | --- | --- | --- |
+| Backend API | `docker/Dockerfile.backend` | `its-b3-backend:latest` | `5000` |
+| Traffic dashboard | `docker/Dockerfile.traffic-dashboard` | `its-b3-traffic-dashboard:latest` | `3000` |
+| Login app | `docker/Dockerfile.login` | `its-b3-login:latest` | `3003` |
 
----
+Run all commands from `services/b3-dashboard`.
 
-## Quick Start
+## Build Images
+
+Backend image:
 
 ```bash
-# 1. Copy env file and fill in your values
+docker build -f docker/Dockerfile.backend -t its-b3-backend:latest .
+```
+
+Traffic dashboard image:
+
+```bash
+docker build \
+  -f docker/Dockerfile.traffic-dashboard \
+  --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost:5000 \
+  --build-arg NEXT_PUBLIC_LOGIN_APP_URL=http://localhost:3003 \
+  --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY= \
+  --build-arg NEXT_PUBLIC_GOOGLE_MAPS_ID= \
+  -t its-b3-traffic-dashboard:latest .
+```
+
+Login image:
+
+```bash
+docker build \
+  -f docker/Dockerfile.login \
+  --build-arg BACKEND_URL=http://localhost:5000 \
+  -t its-b3-login:latest .
+```
+
+## Runtime Environment
+
+Do not bake backend secrets into the Dockerfile. Pass them when the container runs through the deployment platform, for example Kubernetes `env`, ECS task environment, Docker `--env-file`, or CI/CD secrets.
+
+Backend runtime variables:
+
+```text
+PORT=5000
+NODE_ENV=production
+KEYCLOAK_URL=http://localhost:8080
+KEYCLOAK_REALM=its-realm
+KEYCLOAK_CLIENT_ID=b3-dashboard
+KEYCLOAK_CLIENT_SECRET=change-me
+KEYCLOAK_REDIRECT_URI=http://localhost:5000/api/auth/callback
+ADMIN_DASHBOARD_URL=http://localhost:3001
+TRAFFIC_DASHBOARD_URL=http://localhost:3000
+LOGIN_APP_URL=http://localhost:3003
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3003
+SWAGGER_SERVER_URL=http://localhost:5000
+```
+
+Traffic dashboard build variables:
+
+```text
+NEXT_PUBLIC_BACKEND_URL=http://localhost:5000
+NEXT_PUBLIC_LOGIN_APP_URL=http://localhost:3003
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=
+NEXT_PUBLIC_GOOGLE_MAPS_ID=
+```
+
+Login runtime variable:
+
+```text
+BACKEND_URL=http://localhost:5000
+```
+
+Important:
+
+- Backend variables are runtime variables.
+- Login `BACKEND_URL` is runtime and must be reachable by the user's browser because the login app redirects the browser there.
+- Traffic dashboard `NEXT_PUBLIC_*` values are build-time variables because Next.js bundles them into frontend JavaScript. Rebuild the traffic dashboard image after changing them.
+
+## Run Images With Docker
+
+Backend:
+
+```bash
+docker run --rm -p 5000:5000 \
+  -e PORT=5000 \
+  -e NODE_ENV=production \
+  -e KEYCLOAK_URL=http://localhost:8080 \
+  -e KEYCLOAK_REALM=its-realm \
+  -e KEYCLOAK_CLIENT_ID=b3-dashboard \
+  -e KEYCLOAK_CLIENT_SECRET=change-me \
+  -e KEYCLOAK_REDIRECT_URI=http://localhost:5000/api/auth/callback \
+  -e ADMIN_DASHBOARD_URL=http://localhost:3001 \
+  -e TRAFFIC_DASHBOARD_URL=http://localhost:3000 \
+  -e LOGIN_APP_URL=http://localhost:3003 \
+  -e ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:3003 \
+  -e SWAGGER_SERVER_URL=http://localhost:5000 \
+  its-b3-backend:latest
+```
+
+Traffic dashboard:
+
+```bash
+docker run --rm -p 3000:3000 its-b3-traffic-dashboard:latest
+```
+
+Login app:
+
+```bash
+docker run --rm -p 3003:3003 \
+  -e BACKEND_URL=http://localhost:5000 \
+  its-b3-login:latest
+```
+
+## Push Images
+
+Tag images for the target registry:
+
+```bash
+docker tag its-b3-backend:latest registry.example.com/its-b3-backend:1.0.0
+docker tag its-b3-traffic-dashboard:latest registry.example.com/its-b3-traffic-dashboard:1.0.0
+docker tag its-b3-login:latest registry.example.com/its-b3-login:1.0.0
+```
+
+Push images:
+
+```bash
+docker push registry.example.com/its-b3-backend:1.0.0
+docker push registry.example.com/its-b3-traffic-dashboard:1.0.0
+docker push registry.example.com/its-b3-login:1.0.0
+```
+
+## Optional Local Compose
+
+`docker-compose.yml` is only a local convenience file for developers who want to run all three containers together. DevOps can ignore it if images are deployed separately.
+
+```bash
 cp .env.example .env
-
-# 2. Build and start all services
-docker compose up --build
-
-# 3. Open in browser
-#    Login:             http://localhost:3003
-#    Traffic Dashboard: http://localhost:3000
-#    Backend API:       http://localhost:5000
-#    API Docs:          http://localhost:5000/docs
+docker compose --env-file .env up --build
 ```
-
----
-
-## Environment Variables
-
-All variables live in a single `.env` file next to `docker-compose.yml`.
-
-### How they flow
-
-```
-.env
- ├── build args  →  NEXT_PUBLIC_* vars  →  baked into JS bundle at docker build
- └── environment →  server-only vars    →  injected at container start
-```
-
-> **Rule:** `NEXT_PUBLIC_*` vars are read by the browser — they must be set at
-> **build time**. Changing them requires `docker compose up --build`.
-> All other vars are server-side and only need a restart to take effect.
-
-### Variable reference
-
-| Variable | Used by | When | Description |
-|---|---|---|---|
-| `KEYCLOAK_URL` | backend, login | runtime | Keycloak server URL |
-| `KEYCLOAK_REALM` | backend, login | runtime | Keycloak realm name |
-| `KEYCLOAK_CLIENT_ID` | backend, login | runtime | OAuth client ID |
-| `KEYCLOAK_CLIENT_SECRET` | backend | runtime | OAuth client secret (never in frontend) |
-| `KEYCLOAK_REDIRECT_URI` | backend | runtime | Must match Keycloak client config |
-| `ADMIN_DASHBOARD_URL` | backend, login | build + runtime | Public URL of admin dashboard |
-| `TRAFFIC_DASHBOARD_URL` | backend, login | build + runtime | Public URL of traffic dashboard |
-| `LOGIN_APP_URL` | backend | runtime | Public URL of login app |
-| `BACKEND_INTERNAL_URL` | login | runtime | Backend URL inside Docker network |
-| `BACKEND_PUBLIC_URL` | traffic-dashboard | **build time** | Backend URL reachable from browser |
-| `ALLOWED_ORIGINS` | backend | runtime | Comma-separated CORS origins |
-| `GOOGLE_MAPS_API_KEY` | traffic-dashboard | **build time** | Google Maps JS API key |
-| `GOOGLE_MAPS_ID` | traffic-dashboard | **build time** | Google Maps Map ID |
-| `DEV_BYPASS_AUTH` | backend | runtime | `true` skips Keycloak (dev only) |
-
----
-
-## Common Commands
-
-```bash
-# Start all services (rebuild if Dockerfiles or source changed)
-docker compose up --build
-
-# Start without rebuilding
-docker compose up
-
-# Start a single service
-docker compose up --build traffic-dashboard
-
-# Stop all services
-docker compose down
-
-# Stop and remove volumes
-docker compose down -v
-
-# View logs
-docker compose logs -f
-docker compose logs -f backend
-docker compose logs -f traffic-dashboard
-
-# Rebuild one service only
-docker compose build traffic-dashboard
-docker compose up -d traffic-dashboard
-
-# Open a shell inside a running container
-docker compose exec backend sh
-docker compose exec traffic-dashboard sh
-```
-
----
-
-## Changing Environment Variables
-
-### Server-only vars (runtime)
-Edit `.env`, then restart the affected service:
-```bash
-docker compose restart backend
-```
-
-### `NEXT_PUBLIC_*` vars (build time)
-Edit `.env`, then rebuild and redeploy:
-```bash
-docker compose up --build traffic-dashboard
-docker compose up --build login
-```
-
----
-
-## Dev Without Keycloak
-
-Set `DEV_BYPASS_AUTH=true` in `.env` and navigate directly to:
-```
-http://localhost:5000/api/auth/dev-login
-```
-The backend sets a mock session cookie and redirects to the traffic dashboard.
-
-> Never set `DEV_BYPASS_AUTH=true` in production.
-
----
-
-## Two Backend URL Variables
-
-The login container and the browser both call the backend, but from different network contexts:
-
-```
-┌─────────────────────────────────────────────────────┐
-│ Docker network                                      │
-│                                                     │
-│  login ──── BACKEND_INTERNAL_URL ────► backend:5000 │
-└─────────────────────────────────────────────────────┘
-
-Browser ──── BACKEND_PUBLIC_URL ────► localhost:5000
-```
-
-| Variable | Value | Used from |
-|---|---|---|
-| `BACKEND_INTERNAL_URL` | `http://backend:5000` | Inside Docker (service name) |
-| `BACKEND_PUBLIC_URL` | `http://localhost:5000` | Browser (baked into JS bundle) |
-
----
-
-## Production Checklist
-
-- [ ] `DEV_BYPASS_AUTH=false`
-- [ ] `KEYCLOAK_CLIENT_SECRET` set to real secret
-- [ ] `GOOGLE_MAPS_API_KEY` restricted to your domain in Google Cloud Console
-- [ ] `ALLOWED_ORIGINS` lists only your actual frontend domains
-- [ ] `BACKEND_PUBLIC_URL` points to your real backend domain (not localhost)
-- [ ] All `*_URL` vars use `https://`
-- [ ] `KEYCLOAK_REDIRECT_URI` registered in Keycloak client settings

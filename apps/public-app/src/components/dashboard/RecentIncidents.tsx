@@ -32,7 +32,7 @@ export function RecentIncidents() {
       style={{ background: "#1A1D27", border: "1px solid rgba(255,255,255,0.08)" }}
     >
       <div
-        className="px-5 py-4 flex items-center justify-between"
+        className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
       >
         <div>
@@ -48,7 +48,7 @@ export function RecentIncidents() {
         </div>
         <Link
           href="/incidents"
-          className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-70"
+          className="flex items-center gap-1 self-start text-xs font-medium transition-opacity hover:opacity-70 sm:self-auto"
           style={{ color: "#3B82F6" }}
         >
           View all <ArrowRight size={12} />
@@ -59,7 +59,7 @@ export function RecentIncidents() {
         {recent.map((inc, i) => (
           <li
             key={inc.id}
-            className="px-5 py-3.5 flex items-start gap-3 hover:bg-white/2 transition-colors"
+            className="flex flex-wrap items-start gap-3 px-4 py-3.5 transition-colors hover:bg-white/2 sm:flex-nowrap sm:px-5"
             style={{
               borderBottom:
                 i < recent.length - 1
@@ -86,7 +86,7 @@ export function RecentIncidents() {
               </p>
             </div>
             <div
-              className="flex items-center gap-1 text-[10px] shrink-0 mt-0.5"
+              className="mt-0.5 flex w-full items-center gap-1 text-[10px] sm:w-auto sm:shrink-0"
               style={{ color: "#757780" }}
             >
               <Clock size={10} />
