@@ -23,7 +23,7 @@ export function StatCard({
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl p-5 flex flex-col gap-3"
+      className="relative flex flex-col gap-3 overflow-hidden rounded-xl p-4 sm:p-5"
       style={{
         background: "#1A1D27",
         border: "1px solid rgba(255,255,255,0.08)",
@@ -35,9 +35,9 @@ export function StatCard({
         style={{ background: accentColor }}
       />
 
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <p
-          className="text-[11px] font-semibold uppercase tracking-widest"
+          className="pr-2 text-[11px] font-semibold uppercase tracking-widest leading-relaxed"
           style={{ color: "#757780", fontFamily: "var(--font-inter)" }}
         >
           {label}
@@ -50,14 +50,14 @@ export function StatCard({
       </div>
 
       <p
-        className="text-3xl font-bold tabular-nums leading-none"
+        className="text-[1.75rem] font-bold tabular-nums leading-none sm:text-3xl"
         style={{ color: accentColor, fontFamily: "var(--font-space-grotesk)" }}
       >
         {value}
       </p>
 
       {hasTrend && (
-        <div className="flex items-center gap-1.5 text-xs" style={{ fontFamily: "var(--font-inter)" }}>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs" style={{ fontFamily: "var(--font-inter)" }}>
           {isNeutral ? (
             <Minus size={12} style={{ color: "#757780" }} />
           ) : isPositive ? (

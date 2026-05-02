@@ -37,9 +37,9 @@ export function IncidentFilters({
   onType,
 }: IncidentFiltersProps) {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
       {/* Search */}
-      <div className="relative flex-1 min-w-[200px]">
+      <div className="relative w-full min-w-0 flex-1">
         <Search
           size={14}
           className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
@@ -73,6 +73,7 @@ export function IncidentFilters({
         value={severity}
         onChange={(e) => onSeverity(e.target.value as Severity | "all")}
         style={selectStyle}
+        className="w-full sm:w-auto"
       >
         <option value="all">All Severities</option>
         <option value="critical">Critical</option>
@@ -86,6 +87,7 @@ export function IncidentFilters({
         value={status}
         onChange={(e) => onStatus(e.target.value as IncidentStatus | "all")}
         style={selectStyle}
+        className="w-full sm:w-auto"
       >
         <option value="all">All Statuses</option>
         <option value="active">Active</option>
@@ -98,6 +100,7 @@ export function IncidentFilters({
         value={type}
         onChange={(e) => onType(e.target.value as IncidentType | "all")}
         style={selectStyle}
+        className="w-full sm:w-auto"
       >
         <option value="all">All Types</option>
         <option value="accident">Accident</option>
