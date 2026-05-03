@@ -56,6 +56,21 @@ app.use(
 );
 app.use("/health", createHealthRouter({ healthService }));
 
+/**
+ * @openapi
+ * /:
+ *   get:
+ *     summary: Get API welcome message
+ *     tags:
+ *       - System
+ *     responses:
+ *       200:
+ *         description: Backend API welcome message.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/WelcomeResponse'
+ */
 app.get("/", (req, res) => {
   res.status(200).json({ message: "Welcome to the B3 Dashboard Backend API" });
 });

@@ -30,6 +30,8 @@ function decodeJwtPayload(token) {
  *     responses:
  *       302:
  *         description: Redirects to Keycloak authorization page.
+ *       500:
+ *         description: Authentication provider configuration error.
  */
 // GET /api/auth/begin
 // Generates state + nonce, persists them as httpOnly cookies, then redirects to Keycloak.
@@ -181,22 +183,17 @@ router.get("/callback", async (req, res) => {
 
 /**
  * @openapi
- * /api/auth/logout:
- *   post:
- *     summary: Clear auth cookies
+ * /api/auth/dev-login:
+ *   get:
+ *     summary: Create a local development session
+ *     description: Only available when DEV_BYPASS_AUTH=true. Sets a development auth cookie and redirects to the traffic dashboard.
  *     tags:
  *       - Auth
  *     responses:
- *       200:
- *         description: Logout completed
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 ok:
- *                   type: boolean
- *                   example: true
+ *       302:
+ *         description: Development auth cookie was set and the browser is redirected.
+ *       404:
+ *         description: Development bypass is disabled.
  */
 // GET /api/auth/dev-login  — DEVELOPMENT ONLY, bypasses Keycloak entirely
 // Only active when DEV_BYPASS_AUTH=true; returns 404 in production.
@@ -217,6 +214,25 @@ router.get("/dev-login", (req, res) => {
   return res.redirect(process.env.TRAFFIC_DASHBOARD_URL);
 });
 
+/**
+ * @openapi
+ * /api/auth/logout:
+ *   post:
+ *     summary: Clear auth cookies
+ *     tags:
+ *       - Auth
+ *     responses:
+ *       200:
+ *         description: Logout completed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok:
+ *                   type: boolean
+ *                   example: true
+ */
 // POST /api/auth/logout
 router.post("/logout", (req, res) => {
   res.clearCookie("access_token", { path: "/" });
@@ -236,8 +252,16 @@ router.post("/logout", (req, res) => {
  *     responses:
  *       200:
  *         description: Valid session
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserSession'
  *       401:
  *         description: Missing or invalid cookie/token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 router.get("/me", requireAuth, (req, res) => {
   res.json({

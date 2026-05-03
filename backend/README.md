@@ -92,7 +92,7 @@ Do not enable `DEV_BYPASS_AUTH` in staging or production.
 | `TRAFFIC_STALE_AFTER_SECONDS` | `30` | Staleness threshold for metrics |
 | `DEV_BYPASS_AUTH` | `false` | Local-only auth bypass |
 
-Inside Docker compose, `B2_API_BASE_URL` should usually be `http://b2-api:8000` and `B2_WS_URL` should be `ws://b2-api:8000/ws/metrics`.
+Inside Docker compose, `B2_API_BASE_URL` should usually be `http://host.docker.internal:8000` and `B2_WS_URL` should be `ws://host.docker.internal:8000/ws/metrics` when B2 is running separately on the host.
 
 ## REST API
 
@@ -211,7 +211,7 @@ The test suite uses Node's built-in test runner and covers:
 From the repository root:
 
 ```bash
-docker compose up -d b2-api b3-backend b3-traffic-dashboard b3-login
+docker compose up -d b3-backend b3-traffic-dashboard b3-login
 ```
 
 From `services/b3-dashboard`:
@@ -220,7 +220,7 @@ From `services/b3-dashboard`:
 docker compose up -d
 ```
 
-The B3 compose file includes a local `b2-api` and `postgres` dependency so the backend can be demonstrated with the B2 API contract.
+The B3 compose file starts only the B3 services. Start B2 separately before using live traffic data, and keep it reachable from Docker at `host.docker.internal:8000` or override `COMPOSE_B2_API_BASE_URL` and `COMPOSE_B2_WS_URL`.
 
 ## Development Notes
 

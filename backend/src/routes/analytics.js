@@ -7,6 +7,37 @@ function createAnalyticsRouter({ analyticsService, requireAuth }) {
 
   router.use(requireAuth);
 
+  /**
+   * @openapi
+   * /api/analytics/summary:
+   *   get:
+   *     summary: Get traffic analytics summary
+   *     description: Returns aggregate traffic analytics and the underlying metric series for one camera over a required date-time range.
+   *     tags:
+   *       - Analytics
+   *     security:
+   *       - cookieAuth: []
+   *       - bearerAuth: []
+   *     parameters:
+   *       - $ref: '#/components/parameters/CameraIdQuery'
+   *       - $ref: '#/components/parameters/FromQuery'
+   *       - $ref: '#/components/parameters/ToQuery'
+   *     responses:
+   *       200:
+   *         description: Analytics summary.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/AnalyticsSummary'
+   *       400:
+   *         description: Missing or invalid query string.
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ErrorResponse'
+   *       401:
+   *         description: Missing or invalid session.
+   */
   router.get(
     "/summary",
     asyncHandler(async (req, res) => {

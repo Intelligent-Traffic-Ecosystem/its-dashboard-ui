@@ -17,6 +17,14 @@ const { trafficService } = require("../services");
  *     responses:
  *       200:
  *         description: Array of location pins
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Location'
+ *       401:
+ *         description: Missing or invalid session.
  */
 router.get("/", requireAuth, async (req, res, next) => {
   try {
