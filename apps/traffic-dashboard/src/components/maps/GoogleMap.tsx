@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 export interface MapPin {
   id: string;
   type: "incident" | "sensor" | "cctv" | "construction";
-  severity: "critical" | "warning" | "info";
+  severity: "critical" | "warning" | "info" | "emergency";
   lat: number;
   lng: number;
   title: string;
@@ -26,6 +26,58 @@ interface GoogleMapProps {
 
 const SCRIPT_ID = "google-maps-sdk";
 const DEFAULT_CENTER = { lat: 6.0358656, lng: 80.2291712 };
+const USE_DEMO_PINS = process.env.NEXT_PUBLIC_DEMO_MAP_PINS !== "false";
+
+const DEMO_PINS: MapPin[] = [
+  {
+    id: "DEMO-cam_01",
+    type: "incident",
+    severity: "critical",
+    lat: 6.0248,
+    lng: 80.2172,
+    title: "Traffic camera cam_01",
+    description: "HIGH congestion, 18.5 km/h average speed.",
+    status: "demo",
+    timestamp: new Date().toISOString(),
+    details: { vehicleCount: 34, avgSpeedKmh: 18.5, congestionScore: 91, queueLength: 12 },
+  },
+  {
+    id: "DEMO-cam_02",
+    type: "incident",
+    severity: "warning",
+    lat: 6.0545,
+    lng: 80.2209,
+    title: "Traffic camera cam_02",
+    description: "MEDIUM congestion, 31.2 km/h average speed.",
+    status: "demo",
+    timestamp: new Date().toISOString(),
+    details: { vehicleCount: 21, avgSpeedKmh: 31.2, congestionScore: 66, queueLength: 5 },
+  },
+  {
+    id: "DEMO-cam_03",
+    type: "sensor",
+    severity: "info",
+    lat: 6.0182,
+    lng: 80.2477,
+    title: "Traffic camera cam_03",
+    description: "LOW congestion, 44.8 km/h average speed.",
+    status: "demo",
+    timestamp: new Date().toISOString(),
+    details: { vehicleCount: 13, avgSpeedKmh: 44.8, congestionScore: 24, queueLength: 1 },
+  },
+  {
+    id: "DEMO-cam_04",
+    type: "incident",
+    severity: "warning",
+    lat: 6.0358,
+    lng: 80.2291,
+    title: "Traffic camera cam_04",
+    description: "MEDIUM congestion, 29.6 km/h average speed.",
+    status: "demo",
+    timestamp: new Date().toISOString(),
+    details: { vehicleCount: 25, avgSpeedKmh: 29.6, congestionScore: 72, queueLength: 7 },
+  },
+];
 
 // Pin colour per type/severity
 const PIN_STYLE: Record<string, { bg: string; border: string; icon: string }> = {
@@ -109,6 +161,73 @@ function buildInfoContent(pin: MapPin): HTMLElement {
   return wrap;
 }
 
+function isUsableGoogleKey(apiKey: string) {
+  return apiKey.trim().length > 0 && !apiKey.includes("YOUR_") && apiKey !== "DEMO_MAP_ID";
+}
+
+function getPinsForDisplay(pins: MapPin[]) {
+  return pins.length > 0 || !USE_DEMO_PINS ? pins : DEMO_PINS;
+}
+
+async function fetchMapPins(): Promise<MapPin[]> {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  console.log("[Map] loadPins — backendUrl:", backendUrl);
+  if (!backendUrl) {
+    console.warn("[Map] NEXT_PUBLIC_BACKEND_URL not set — using demo pins.");
+    return getPinsForDisplay([]);
+  }
+
+  try {
+    const res = await fetch(`${backendUrl}/api/locations`, { credentials: "include" });
+    console.log("[Map] /api/locations response:", res.status);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const pins = await res.json();
+    console.log("[Map] pins received:", pins.length);
+    return getPinsForDisplay(pins);
+  } catch (err: any) {
+    console.warn("[Map] pins unavailable:", err.message);
+    return getPinsForDisplay([]);
+  }
+}
+
+function LocalFallbackMap({ pins }: { pins: MapPin[] }) {
+  const displayPins = getPinsForDisplay(pins);
+  const lats = displayPins.map((pin) => pin.lat);
+  const lngs = displayPins.map((pin) => pin.lng);
+  const minLat = Math.min(...lats, DEFAULT_CENTER.lat - 0.03);
+  const maxLat = Math.max(...lats, DEFAULT_CENTER.lat + 0.03);
+  const minLng = Math.min(...lngs, DEFAULT_CENTER.lng - 0.03);
+  const maxLng = Math.max(...lngs, DEFAULT_CENTER.lng + 0.03);
+
+  return (
+    <div className="absolute inset-0 overflow-hidden bg-[#121822]">
+      <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(76,215,246,.10)_1px,transparent_1px),linear-gradient(90deg,rgba(76,215,246,.10)_1px,transparent_1px)] [background-size:42px_42px]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(76,215,246,.18),transparent_42%),linear-gradient(135deg,rgba(173,198,255,.12),transparent_45%)]" />
+      <div className="absolute left-[8%] right-[10%] top-[38%] h-3 rotate-[-8deg] rounded-full bg-[#2d3542]" />
+      <div className="absolute left-[18%] right-[6%] top-[58%] h-3 rotate-[12deg] rounded-full bg-[#2d3542]" />
+      <div className="absolute bottom-4 left-4 rounded bg-surface-container/90 px-3 py-2 text-[11px] text-on-surface-variant border border-outline-variant">
+        Local map preview. Add a valid Google Maps API key for live tiles.
+      </div>
+      {displayPins.map((pin) => {
+        const style = getPinStyle(pin);
+        const left = ((pin.lng - minLng) / Math.max(maxLng - minLng, 0.0001)) * 84 + 8;
+        const top = (1 - (pin.lat - minLat) / Math.max(maxLat - minLat, 0.0001)) * 74 + 10;
+        return (
+          <button
+            key={pin.id}
+            type="button"
+            title={`${pin.title}: ${pin.description}`}
+            className="absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 shadow-lg"
+            style={{ left: `${left}%`, top: `${top}%`, background: style.bg, borderColor: style.border, color: style.border }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{style.icon}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function GoogleMap({
   className = "absolute inset-0",
   center = DEFAULT_CENTER,
@@ -118,13 +237,30 @@ export default function GoogleMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const initialised = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [pins, setPins] = useState<MapPin[]>([]);
+  const [useFallback, setUseFallback] = useState(false);
 
   useEffect(() => {
     console.log("[Map] effect fired — initialised:", initialised.current, "container:", !!containerRef.current);
     if (initialised.current || !containerRef.current) return;
     initialised.current = true;
 
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
+
+    (window as any).gm_authFailure = () => {
+      console.warn("[Map] Google Maps auth failed — switching to local preview map.");
+      setError("Google Maps API key is missing or invalid.");
+      setUseFallback(true);
+    };
+
     async function initMap() {
+      if (!isUsableGoogleKey(apiKey)) {
+        setError("Google Maps API key is missing. Showing local map preview.");
+        setUseFallback(true);
+        setPins(await fetchMapPins());
+        return;
+      }
+
       console.log("[Map] initMap started");
       const g = (window as any).google;
       console.log("[Map] google.maps:", !!g?.maps, "importLibrary:", typeof g?.maps?.importLibrary);
@@ -168,30 +304,12 @@ export default function GoogleMap({
         });
       }
 
-      loadPins(map, InfoWindow, AdvancedMarkerElement);
+      const pins = await fetchMapPins();
+      setPins(pins);
+      placePins(map, InfoWindow, AdvancedMarkerElement, pins);
     }
 
-    async function loadPins(map: any, InfoWindow: any, AdvancedMarkerElement: any) {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-      console.log("[Map] loadPins — backendUrl:", backendUrl);
-      if (!backendUrl) {
-        console.warn("[Map] NEXT_PUBLIC_BACKEND_URL not set — skipping pin load.");
-        return;
-      }
-
-      let pins: MapPin[] = [];
-      try {
-        const res = await fetch(`${backendUrl}/api/locations`, { credentials: "include" });
-        console.log("[Map] /api/locations response:", res.status);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        pins = await res.json();
-        console.log("[Map] pins received:", pins.length);
-      } catch (err: any) {
-        console.warn("[Map] pins unavailable:", err.message);
-        setError("Could not load map pins — map still functional.");
-        return;
-      }
-
+    function placePins(map: any, InfoWindow: any, AdvancedMarkerElement: any, pins: MapPin[]) {
       const infoWindow = new InfoWindow();
 
       pins.forEach((pin) => {
@@ -235,8 +353,6 @@ export default function GoogleMap({
           return;
         }
 
-        const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-
         // Inline bootstrap — mirrors the snippet from the Google Maps docs.
         // Sets up window.google.maps.importLibrary without blocking the page.
         const bootstrap = document.createElement("script");
@@ -273,9 +389,11 @@ export default function GoogleMap({
 
     loadScript()
       .then(initMap)
-      .catch((err) => {
+      .catch(async (err) => {
         console.error("Google Maps failed to load:", err.message);
         setError("Map could not be loaded. Check your API key.");
+        setUseFallback(true);
+        setPins(await fetchMapPins());
       });
   }, []);
 
@@ -284,6 +402,7 @@ export default function GoogleMap({
       {/* ref goes directly on the element that receives className so there are
           no extra wrappers conflicting with position:absolute / inset:0 */}
       <div ref={containerRef} className={className} />
+      {useFallback && <LocalFallbackMap pins={pins} />}
       {error && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-error-container border border-error/30 text-on-error-container text-[11px] px-3 py-1.5 rounded-lg flex items-center gap-1.5">
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>warning</span>
