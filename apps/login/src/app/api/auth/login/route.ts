@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 export function GET() {
   const backendUrl = process.env.BACKEND_URL;
 
