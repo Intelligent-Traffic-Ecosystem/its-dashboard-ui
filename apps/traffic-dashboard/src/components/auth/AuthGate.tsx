@@ -22,7 +22,7 @@ export default function AuthGate({ children }: AuthGateProps) {
         });
 
         if (!response.ok) {
-          window.location.href = `${loginAppUrl}/api/auth/login`;
+          window.location.href = `${loginAppUrl}`;
           return;
         }
 
@@ -30,7 +30,7 @@ export default function AuthGate({ children }: AuthGateProps) {
           setStatus("ready");
         }
       } catch {
-        window.location.href = `${loginAppUrl}/api/auth/login`;
+        window.location.href = `${loginAppUrl}`;
       }
     }
 
