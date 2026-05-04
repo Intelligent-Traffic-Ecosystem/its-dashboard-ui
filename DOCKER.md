@@ -1,12 +1,13 @@
 # B3 Dashboard Docker Image Guide
 
-DevOps should build and deploy three separate Docker images for the B3 dashboard module. Docker Compose is not required for deployment.
+DevOps should build and deploy separate Docker images for the B3 dashboard module. Docker Compose is not required for deployment.
 
 | Component | Dockerfile | Default image | Port |
 | --- | --- | --- | --- |
 | Backend API | `docker/Dockerfile.backend` | `its-b3-backend:latest` | `5000` |
 | Traffic dashboard | `docker/Dockerfile.traffic-dashboard` | `its-b3-traffic-dashboard:latest` | `3000` |
 | Login app | `docker/Dockerfile.login` | `its-b3-login:latest` | `3003` |
+| Public app | `docker/Dockerfile.public-app` | `its-b3-public-app:latest` | `3002` |
 
 Run all commands from `services/b3-dashboard`.
 
@@ -37,6 +38,15 @@ docker build \
   -f docker/Dockerfile.login \
   --build-arg BACKEND_URL=http://localhost:5000 \
   -t its-b3-login:latest .
+```
+
+Public app image (Mapbox token is required for the map; it is inlined at build time):
+
+```bash
+docker build \
+  -f docker/Dockerfile.public-app \
+  --build-arg NEXT_PUBLIC_MAPBOX_TOKEN=your_mapbox_token \
+  -t its-b3-public-app:latest .
 ```
 
 ## Runtime Environment
@@ -116,6 +126,12 @@ docker run --rm -p 3003:3003 \
   its-b3-login:latest
 ```
 
+Public app:
+
+```bash
+docker run --rm -p 3002:3002 its-b3-public-app:latest
+```
+
 ## Push Images
 
 Tag images for the target registry:
@@ -124,6 +140,7 @@ Tag images for the target registry:
 docker tag its-b3-backend:latest registry.example.com/its-b3-backend:1.0.0
 docker tag its-b3-traffic-dashboard:latest registry.example.com/its-b3-traffic-dashboard:1.0.0
 docker tag its-b3-login:latest registry.example.com/its-b3-login:1.0.0
+docker tag its-b3-public-app:latest registry.example.com/its-b3-public-app:1.0.0
 ```
 
 Push images:
@@ -132,6 +149,7 @@ Push images:
 docker push registry.example.com/its-b3-backend:1.0.0
 docker push registry.example.com/its-b3-traffic-dashboard:1.0.0
 docker push registry.example.com/its-b3-login:1.0.0
+docker push registry.example.com/its-b3-public-app:1.0.0
 ```
 
 ## Optional Local Compose
