@@ -20,12 +20,9 @@ ENV NODE_ENV=production
 ENV PORT=3003
 ENV BACKEND_URL=http://localhost:5000
 
-COPY apps/login/package*.json ./
-RUN npm ci --omit=dev
-
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3003
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
