@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Flame, MapPin, Navigation } from "lucide-react";
 
 interface Layer {
@@ -16,19 +15,16 @@ const LAYERS: Layer[] = [
   { id: "flow", label: "Traffic Flow", icon: <Navigation size={14} />, defaultOn: false },
 ];
 
-export function LayerToggles() {
-  const [active, setActive] = useState<Set<string>>(
-    () => new Set(LAYERS.filter((l) => l.defaultOn).map((l) => l.id))
-  );
+export const DEFAULT_ACTIVE_LAYERS = new Set(
+  LAYERS.filter((l) => l.defaultOn).map((l) => l.id)
+);
 
-  const toggle = (id: string) => {
-    setActive((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
+export interface LayerTogglesProps {
+  activeLayers: Set<string>;
+  onToggle: (id: string) => void;
+}
 
+export function LayerToggles({ activeLayers: active, onToggle }: LayerTogglesProps) {
   return (
     <div
       className="rounded-xl p-4"
@@ -46,7 +42,7 @@ export function LayerToggles() {
           return (
             <button
               key={layer.id}
-              onClick={() => toggle(layer.id)}
+              onClick={() => onToggle(layer.id)}
               className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-left"
               style={{
                 background: on ? "rgba(59,130,246,0.08)" : "transparent",
