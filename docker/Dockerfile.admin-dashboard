@@ -1,0 +1,33 @@
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY apps/admin-dashboard/package*.json ./
+RUN npm ci
+
+# Copy the rest of the application
+COPY apps/admin-dashboard/ ./
+
+# Build the Next.js application
+RUN npm run build
+
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Install only production dependencies
+COPY apps/admin-dashboard/package*.json ./
+RUN npm ci --omit=dev
+
+# Copy build artifacts from the builder stage
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.mjs ./
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
