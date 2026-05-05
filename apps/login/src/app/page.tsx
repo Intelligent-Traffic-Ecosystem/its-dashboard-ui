@@ -7,7 +7,7 @@ export default function LoginPage() {
 
   function handleSignIn() {
     setLoading(true);
-    window.location.href = "/api/auth/login";
+    window.location.href = "/login/api/auth/login";
   }
 
   return (
