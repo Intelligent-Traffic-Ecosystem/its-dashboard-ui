@@ -19,7 +19,7 @@ export default function CriticalAlertBanner() {
           </p>
         </div>
       </div>
-      <button className="bg-white text-error-container font-headline-md text-xs font-bold py-2 px-6 rounded uppercase hover:bg-white/90 active:opacity-80 transition-all flex-shrink-0">
+      <button className="bg-white text-error-container font-headline-md text-xs font-bold py-2 px-6 rounded uppercase hover:bg-white/90 active:opacity-80 transition-all shrink-0">
         Acknowledge
       </button>
     </div>
