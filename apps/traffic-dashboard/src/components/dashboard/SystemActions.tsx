@@ -1,24 +1,91 @@
-const actions = [
-  { icon: "videocam_off", label: "Reboot Camera", hoverColor: "hover:border-primary/50 hover:bg-primary/5", iconClass: "text-primary" },
-  { icon: "speed",        label: "Apply Slowdown", hoverColor: "hover:border-error/50 hover:bg-error/5",   iconClass: "text-error" },
-  { icon: "broadcast_on_home", label: "Update VMS", hoverColor: "hover:border-tertiary/50 hover:bg-tertiary/5", iconClass: "text-tertiary" },
-  { icon: "refresh",      label: "Sync Sensors",   hoverColor: "hover:border-white/50 hover:bg-white/5",  iconClass: "text-slate-400" },
-];
+"use client";
 
-const statusItems = [
-  { label: "API Connection", value: "22ms" },
-  { label: "Model Latency",  value: "104ms" },
+/**
+ * REQ-DR-004: Data staleness indicator.
+ * REQ-NFR-008: Degraded-mode notice when upstream is unavailable.
+ */
+import { useEffect, useState } from "react";
+import { getSocket, type TrafficMetric } from "@/lib/socket";
+
+const ACTIONS = [
+  { icon: "videocam_off",      label: "Reboot Camera",  hoverColor: "hover:border-primary/50 hover:bg-primary/5",   iconClass: "text-primary" },
+  { icon: "speed",             label: "Apply Slowdown", hoverColor: "hover:border-error/50 hover:bg-error/5",       iconClass: "text-error" },
+  { icon: "broadcast_on_home", label: "Update VMS",     hoverColor: "hover:border-tertiary/50 hover:bg-tertiary/5", iconClass: "text-tertiary" },
+  { icon: "refresh",           label: "Sync Sensors",   hoverColor: "hover:border-white/50 hover:bg-white/5",       iconClass: "text-slate-400" },
 ];
 
 export default function SystemActions() {
+  const [connected, setConnected]   = useState(false);
+  const [latency, setLatency]       = useState<number | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
+  const [stale, setStale]           = useState(false);
+
+  useEffect(() => {
+    const socket = getSocket();
+    let staleTimer: ReturnType<typeof setInterval>;
+
+    const onConnect = () => {
+      setConnected(true);
+      // measure round-trip latency
+      const t0 = Date.now();
+      socket.emit("ping");
+      socket.once("pong", () => setLatency(Date.now() - t0));
+    };
+    const onDisconnect = () => { setConnected(false); setLatency(null); };
+
+    const onMetrics = (data: TrafficMetric[]) => {
+      if (!data.length) return;
+      const latest = data
+        .map((m) => (m.windowEnd ? new Date(m.windowEnd).getTime() : 0))
+        .reduce((a, b) => Math.max(a, b), 0);
+      if (latest > 0) setLastUpdate(latest);
+    };
+
+    socket.on("connect",         onConnect);
+    socket.on("disconnect",      onDisconnect);
+    socket.on("traffic:metrics", onMetrics);
+    if (socket.connected) { setConnected(true); }
+
+    // REQ-DR-004: poll for staleness every 5s
+    staleTimer = setInterval(() => {
+      setStale((prev) => {
+        if (lastUpdate === null) return prev;
+        return Date.now() - lastUpdate > 30_000;
+      });
+    }, 5_000);
+
+    return () => {
+      socket.off("connect",         onConnect);
+      socket.off("disconnect",      onDisconnect);
+      socket.off("traffic:metrics", onMetrics);
+      clearInterval(staleTimer);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastUpdate]);
+
+  const statusItems = [
+    {
+      label: "B3 Backend",
+      value: connected ? (latency !== null ? `${latency}ms` : "connected") : "offline",
+      ok: connected,
+    },
+    {
+      label: "Data Feed",
+      // REQ-DR-004: stale indicator
+      value: !connected ? "no connection" : stale ? "STALE >30s" : lastUpdate ? "live" : "waiting",
+      ok: connected && !stale && lastUpdate !== null,
+      warn: stale,
+    },
+  ];
+
   return (
     <div className="bg-surface-container border border-white/10 rounded p-md">
-      <h3 className="font-headline-md text-sm font-bold uppercase tracking-widest text-white mb-4">
+      <h3 className="text-sm font-bold uppercase tracking-widest text-white mb-4">
         SYSTEM ACTIONS
       </h3>
 
       <div className="grid grid-cols-2 gap-sm">
-        {actions.map(({ icon, label, hoverColor, iconClass }) => (
+        {ACTIONS.map(({ icon, label, hoverColor, iconClass }) => (
           <button
             key={label}
             className={`flex flex-col items-center justify-center gap-2 p-4 bg-surface-container-high border border-white/5 rounded transition-all group ${hoverColor}`}
@@ -32,19 +99,32 @@ export default function SystemActions() {
       </div>
 
       <div className="mt-6 space-y-3">
-        {statusItems.map(({ label, value }) => (
+        {statusItems.map(({ label, value, ok, warn }) => (
           <div
             key={label}
-            className="flex items-center justify-between p-3 bg-surface-container-lowest rounded border border-white/5"
+            className={`flex items-center justify-between p-3 rounded border ${
+              warn ? "bg-yellow-900/20 border-yellow-500/30" :
+              ok   ? "bg-surface-container-lowest border-white/5" :
+                     "bg-red-900/20 border-red-500/30"
+            }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <div className={`w-2 h-2 rounded-full ${warn ? "bg-yellow-400" : ok ? "bg-emerald-400" : "bg-red-500"}`} />
               <span className="text-[11px] font-medium uppercase">{label}</span>
             </div>
-            <span className="text-[10px] font-mono-data text-slate-500">{value}</span>
+            <span className={`text-[10px] font-mono-data ${warn ? "text-yellow-400" : ok ? "text-slate-400" : "text-red-400"}`}>
+              {value}
+            </span>
           </div>
         ))}
       </div>
+
+      {/* REQ-NFR-008: degraded mode notice */}
+      {!connected && (
+        <p className="mt-4 text-[10px] text-yellow-400 font-mono-data text-center border border-yellow-500/30 rounded p-2">
+          ⚠ DEGRADED MODE — serving last cached state
+        </p>
+      )}
     </div>
   );
 }

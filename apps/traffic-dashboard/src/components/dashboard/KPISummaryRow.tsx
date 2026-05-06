@@ -1,59 +1,138 @@
-const kpis = [
-  {
-    label: "ACTIVE INCIDENTS",
-    value: "08",
-    valueClass: "text-error",
-    badge: { icon: "trending_up", text: "+2.4%", cls: "text-error" },
-    dot: true,
-  },
-  {
-    label: "AVG FLOW SPEED",
-    value: "42",
-    unit: "KM/H",
-    valueClass: "text-primary",
-    badge: { icon: "trending_down", text: "-12%", cls: "text-primary" },
-    dot: true,
-  },
-  {
-    label: "CONGESTION LEVEL",
-    value: "MODERATE",
-    valueClass: "text-tertiary text-headline-md",
-    badge: { icon: "remove", text: "STABLE", cls: "text-tertiary" },
-    dot: false,
-  },
-  {
-    label: "SYSTEM ALERTS",
-    value: "12",
-    valueClass: "text-white",
-    badge: { icon: "check_circle", text: "HEALTHY", cls: "text-slate-500" },
-    dot: true,
-  },
-];
+"use client";
+
+/**
+ * REQ-FR-002: Summary panel — total active incidents, average network speed,
+ * congestion level (Low/Moderate/High/Critical), and active alert count.
+ */
+import { useEffect, useState } from "react";
+import { getSocket, type TrafficMetric, type TrafficAlert } from "@/lib/socket";
+
+const LEVEL_ORDER = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 } as const;
+
+// REQ-DR-001: Standard four-tier display labels
+const LEVEL_LABEL: Record<string, string> = {
+  LOW:      "Low",
+  MEDIUM:   "Moderate",
+  HIGH:     "High",
+  CRITICAL: "Critical",
+};
+
+const LEVEL_CLASS: Record<string, string> = {
+  LOW:      "text-secondary",
+  MEDIUM:   "text-tertiary",
+  HIGH:     "text-error",
+  CRITICAL: "text-error",
+};
+
+function deriveStats(metrics: TrafficMetric[]) {
+  if (!metrics.length) return null;
+  const avgSpeed = metrics.reduce((s, m) => s + m.averageSpeedKmh, 0) / metrics.length;
+  const maxLevel = metrics.reduce<TrafficMetric["congestionLevel"]>((max, m) =>
+    LEVEL_ORDER[m.congestionLevel] > LEVEL_ORDER[max] ? m.congestionLevel : max, "LOW");
+  const incidents = metrics.filter(
+    (m) => m.congestionLevel === "HIGH" || m.congestionLevel === "CRITICAL"
+  ).length;
+  // REQ-DR-004: detect stale data (>30s since last windowEnd)
+  const latest = metrics
+    .map((m) => (m.windowEnd ? new Date(m.windowEnd).getTime() : 0))
+    .reduce((a, b) => Math.max(a, b), 0);
+  const stale = latest > 0 && Date.now() - latest > 30_000;
+  return { avgSpeed, maxLevel, incidents, stale };
+}
 
 export default function KPISummaryRow() {
+  const [metrics, setMetrics] = useState<TrafficMetric[]>([]);
+  const [alertCount, setAlertCount] = useState(0);
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const onConnect    = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
+    const onCongestion = (data: TrafficMetric[]) => setMetrics(data);
+    const onAlert      = (_: TrafficAlert) => setAlertCount((n) => n + 1);
+
+    socket.on("connect",           onConnect);
+    socket.on("disconnect",        onDisconnect);
+    socket.on("traffic:congestion", onCongestion);
+    socket.on("alert:new",         onAlert);
+    if (socket.connected) setConnected(true);
+
+    return () => {
+      socket.off("connect",           onConnect);
+      socket.off("disconnect",        onDisconnect);
+      socket.off("traffic:congestion", onCongestion);
+      socket.off("alert:new",         onAlert);
+    };
+  }, []);
+
+  const s = deriveStats(metrics);
+
+  const kpis = [
+    {
+      label: "ACTIVE INCIDENTS",
+      value: s ? String(s.incidents).padStart(2, "0") : "—",
+      valueClass: s && s.incidents > 0 ? "text-error" : "text-white",
+      sub: s ? `${metrics.length} cameras online` : connected ? "waiting for data…" : "offline",
+      dot: s ? s.incidents > 0 : false,
+      dotColor: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]",
+    },
+    {
+      label: "AVG NETWORK SPEED",
+      value: s ? Math.round(s.avgSpeed).toString() : "—",
+      unit: "KM/H",
+      valueClass: "text-primary",
+      sub: connected ? (s?.stale ? "⚠ DATA STALE" : "live · 5s refresh") : "no connection",
+      dot: connected,
+      dotColor: s?.stale ? "bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.6)]" : "bg-emerald-500 shadow-[0_0_8px_rgba(52,211,153,0.5)]",
+    },
+    {
+      label: "CONGESTION LEVEL",
+      value: s ? LEVEL_LABEL[s.maxLevel] : "—",
+      valueClass: s ? LEVEL_CLASS[s.maxLevel] : "text-slate-500",
+      sub: "network-wide peak",
+      dot: false,
+    },
+    {
+      label: "ACTIVE ALERTS",
+      value: String(alertCount).padStart(2, "0"),
+      valueClass: alertCount > 0 ? "text-tertiary" : "text-white",
+      sub: alertCount > 0 ? "this session" : "all clear",
+      dot: alertCount > 0,
+      dotColor: "bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]",
+    },
+  ];
+
+  // REQ-NFR-008: degraded mode notice
+  if (!connected) {
+    return (
+      <div className="col-span-4 bg-surface-container border border-yellow-500/30 rounded p-md text-center text-yellow-400 text-xs font-mono-data tracking-widest">
+        ⚠ DEGRADED MODE — Socket.IO offline. Reconnecting…
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-gutter">
       {kpis.map((kpi) => (
         <div
           key={kpi.label}
-          className="bg-surface-container border border-white/10 p-md rounded flex flex-col justify-between h-24 relative overflow-hidden"
+          className="bg-surface-container border border-white/10 p-md rounded flex flex-col justify-between h-28 relative overflow-hidden"
         >
-          <span className="text-label-caps text-slate-400 uppercase tracking-[0.08em] font-bold text-[11px]">
+          {kpi.dot && (
+            <span className={`absolute top-3 right-3 w-2 h-2 rounded-full ${kpi.dotColor}`} />
+          )}
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">
             {kpi.label}
           </span>
-          <div className="flex items-end justify-between">
-            <span className={`font-headline-md text-display-lg font-semibold ${kpi.valueClass}`}>
-              {kpi.value}
-              {kpi.unit && <span className="text-sm font-normal"> {kpi.unit}</span>}
-            </span>
-            <div className={`flex items-center text-[10px] font-mono-data ${kpi.badge.cls}`}>
-              <span className="material-symbols-outlined text-xs mr-1">{kpi.badge.icon}</span>
-              {kpi.badge.text}
-            </div>
-          </div>
-          {kpi.dot && (
-            <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]" />
-          )}
+          <span className={`font-semibold text-3xl leading-none ${kpi.valueClass}`}>
+            {kpi.value}
+            {kpi.unit && <span className="text-sm font-normal ml-1">{kpi.unit}</span>}
+          </span>
+          <span className={`text-[10px] font-mono-data ${s?.stale && kpi.label === "AVG NETWORK SPEED" ? "text-yellow-400" : "text-slate-500"}`}>
+            {kpi.sub}
+          </span>
         </div>
       ))}
     </div>
