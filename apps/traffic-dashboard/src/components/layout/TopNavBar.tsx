@@ -8,29 +8,32 @@ import { getSocket, type TrafficAlert } from "@/lib/socket";
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/analytics", label: "Historical Analytics" },
-  { href: "/reports",   label: "Reports" },
+  { href: "/reports", label: "Reports" },
 ];
+
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL || "http://localhost:3003";
 
 export default function TopNavBar() {
   const pathname = usePathname();
-  const [connected, setConnected]   = useState(false);
+  const [connected, setConnected] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
 
   useEffect(() => {
     const socket = getSocket();
-    const onConnect    = () => setConnected(true);
+    const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
-    const onAlert      = (_: TrafficAlert) => setAlertCount((n) => n + 1);
+    const onAlert = (_: TrafficAlert) => setAlertCount((n) => n + 1);
 
-    socket.on("connect",    onConnect);
+    socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
-    socket.on("alert:new",  onAlert);
+    socket.on("alert:new", onAlert);
     if (socket.connected) setConnected(true);
 
     return () => {
-      socket.off("connect",    onConnect);
+      socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
-      socket.off("alert:new",  onAlert);
+      socket.off("alert:new", onAlert);
     };
   }, []);
 
@@ -66,11 +69,10 @@ export default function TopNavBar() {
             <Link
               key={href}
               href={href}
-              className={`font-display-lg text-sm tracking-tight px-2 py-1 transition-colors ${
-                active
-                  ? "text-blue-400 dark:text-[#3B82F6] border-b-2 border-blue-500"
-                  : "text-slate-400 hover:bg-slate-800 dark:hover:bg-[#243447]"
-              }`}
+              className={`font-display-lg text-sm tracking-tight px-2 py-1 transition-colors ${active
+                ? "text-blue-400 dark:text-[#3B82F6] border-b-2 border-blue-500"
+                : "text-slate-400 hover:bg-slate-800 dark:hover:bg-[#243447]"
+                }`}
             >
               {label}
             </Link>

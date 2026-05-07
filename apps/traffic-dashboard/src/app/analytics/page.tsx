@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useMemo } from "react";
 import KPIRow from "@/components/analytics/KPIRow";
 import CongestionIndexChart from "@/components/analytics/CongestionIndexChart";
 import PeakHourChart from "@/components/analytics/PeakHourChart";
@@ -7,6 +10,32 @@ import DataCoveragePanel from "@/components/analytics/DataCoveragePanel";
 import FABOverlay from "@/components/ui/FABOverlay";
 
 export default function AnalyticsPage() {
+  const [timeRange, setTimeRange] = useState("last30days");
+  const [selectedCamera, setSelectedCamera] = useState("CAM-001");
+
+  // Calculate date range based on selected option
+  const { from, to } = useMemo(() => {
+    const now = new Date();
+    let fromDate: Date;
+
+    switch (timeRange) {
+      case "last7days":
+        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "quarterly":
+        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case "last30days":
+      default:
+        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    return {
+      from: fromDate.toISOString(),
+      to: now.toISOString(),
+    };
+  }, [timeRange]);
+
   return (
     <main className="ml-64 p-margin pt-sm">
       <header className="flex justify-between items-end mb-lg">
@@ -20,14 +49,32 @@ export default function AnalyticsPage() {
         </div>
         <div className="flex items-center gap-md">
           <div className="flex items-center bg-surface-container border border-outline-variant rounded-lg p-1">
-            <button className="px-md py-1.5 text-body-sm font-medium text-on-surface bg-surface-container-highest rounded shadow-sm">
+            <button
+              onClick={() => setTimeRange("last30days")}
+              className={`px-md py-1.5 text-body-sm font-medium rounded transition-colors ${timeRange === "last30days"
+                  ? "text-on-surface bg-surface-container-highest shadow-sm"
+                  : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
               Last 30 Days
             </button>
-            <button className="px-md py-1.5 text-body-sm font-medium text-on-surface-variant hover:text-on-surface">
-              Quarterly
+            <button
+              onClick={() => setTimeRange("last7days")}
+              className={`px-md py-1.5 text-body-sm font-medium rounded transition-colors ${timeRange === "last7days"
+                  ? "text-on-surface bg-surface-container-highest shadow-sm"
+                  : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
+              Last 7 Days
             </button>
-            <button className="px-md py-1.5 text-body-sm font-medium text-on-surface-variant hover:text-on-surface">
-              Custom
+            <button
+              onClick={() => setTimeRange("quarterly")}
+              className={`px-md py-1.5 text-body-sm font-medium rounded transition-colors ${timeRange === "quarterly"
+                  ? "text-on-surface bg-surface-container-highest shadow-sm"
+                  : "text-on-surface-variant hover:text-on-surface"
+                }`}
+            >
+              Quarterly
             </button>
           </div>
           <button className="flex items-center gap-xs bg-primary-container text-on-primary-container px-lg py-2 rounded-lg font-semibold text-title-sm hover:opacity-90 transition-opacity">
@@ -41,7 +88,7 @@ export default function AnalyticsPage() {
 
       <div className="grid grid-cols-12 gap-gutter mb-lg">
         <CongestionIndexChart />
-        <PeakHourChart />
+        <PeakHourChart cameraId={selectedCamera} from={from} to={to} />
       </div>
 
       <div className="grid grid-cols-12 gap-gutter">

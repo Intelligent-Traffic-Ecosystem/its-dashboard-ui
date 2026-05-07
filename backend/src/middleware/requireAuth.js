@@ -172,7 +172,7 @@ async function requireAuth(req, res, next) {
       sub: "dev-user",
       preferred_username: "dev_operator",
       email: "dev@its.local",
-      realm_access: { roles: ["operator"] },
+      realm_access: { roles: ["admin", "operator"] },
     };
     return next();
   }

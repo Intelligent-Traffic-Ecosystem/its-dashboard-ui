@@ -215,7 +215,7 @@ router.get("/dev-login", (req, res) => {
     maxAge: 8 * 60 * 60 * 1000, // 8 hours
   });
 
-  return res.redirect(process.env.TRAFFIC_DASHBOARD_URL);
+  return res.redirect(process.env.ADMIN_DASHBOARD_URL || "http://localhost:3000");
 });
 
 /**
