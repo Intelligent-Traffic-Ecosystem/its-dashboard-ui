@@ -14,6 +14,7 @@ const createHealthRouter = require("./routes/health");
 const createAdminRouter = require("./routes/admin");
 const createDashboardRouter = require("./routes/dashboard");
 const createMapRouter = require("./routes/map");
+const createPublicRouter = require("./routes/public");
 const requireAuth = require("./middleware/requireAuth");
 const errorHandler = require("./middleware/errorHandler");
 const swaggerSpec = require("./swagger");
@@ -38,6 +39,13 @@ app.use(morgan("dev"));
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRoutes);
+app.use(
+  "/api/public",
+  createPublicRouter({
+    trafficService,
+    mapService,
+  })
+);
 app.use("/api/locations", locationRoutes);
 app.use(
   "/api/traffic",

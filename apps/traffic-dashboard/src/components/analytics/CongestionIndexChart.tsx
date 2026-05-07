@@ -70,7 +70,7 @@ export default function CongestionIndexChart({ metricsSummary }: CongestionIndex
 
       <div className="flex justify-between mt-md px-md text-[10px] text-on-surface-variant font-mono-data">
         {metricsSummary ? (
-          bars.slice(0, 8).map((bar) => <span key={bar.label}>{bar.label}</span>)
+          bars.slice(0, 8).map((bar, index) => <span key={`${bar.label}-${index}`}>{bar.label}</span>)
         ) : metrics.length > 0 ? (
           metrics.map((m) => <span key={m.cameraId}>{m.cameraId}</span>)
         ) : (

@@ -4,6 +4,7 @@ const express = require("express");
 
 const createTrafficRouter = require("../src/routes/traffic");
 const createHealthRouter = require("../src/routes/health");
+const createPublicRouter = require("../src/routes/public");
 const errorHandler = require("../src/middleware/errorHandler");
 
 function allow(req, res, next) {
@@ -64,6 +65,48 @@ test("traffic route validation returns 400", async () => {
   const response = await request(app, "/api/traffic/metrics/current");
   assert.equal(response.status, 400);
   assert.equal(response.body.error, "bad_request");
+});
+
+test("public routes return live map data without auth middleware", async () => {
+  const app = express();
+  const trafficService = {
+    getCurrentCongestion: async () => [
+      {
+        cameraId: "cam_01",
+        windowStart: "2026-05-07T10:00:00Z",
+        windowEnd: "2026-05-07T10:05:00Z",
+        vehicleCount: 12,
+        countsByClass: {},
+        averageSpeedKmh: 32,
+        stoppedRatio: 0.1,
+        queueLength: 2,
+        congestionLevel: "MEDIUM",
+        congestionScore: 55,
+        stale: false,
+      },
+    ],
+  };
+  const mapService = {
+    getHeatmap: async () => [{ cameraId: "cam_01", lat: 6.02, lng: 80.21, weight: 1 }],
+    getIncidents: async () => [{ alertId: "alert-1", cameraId: "cam_01", lat: 6.02, lng: 80.21 }],
+  };
+
+  app.use("/api/public", createPublicRouter({ trafficService, mapService }));
+  app.use(errorHandler);
+
+  const traffic = await request(app, "/api/public/traffic/current");
+  assert.equal(traffic.status, 200);
+  assert.equal(traffic.body.items[0].cameraId, "cam_01");
+
+  const locations = await request(app, "/api/public/locations");
+  assert.equal(locations.status, 200);
+  assert.equal(locations.body.items[0].id, "CAM-cam_01");
+
+  const live = await request(app, "/api/public/map/live");
+  assert.equal(live.status, 200);
+  assert.equal(live.body.traffic.length, 1);
+  assert.equal(live.body.heatmap.length, 1);
+  assert.equal(live.body.incidents.length, 1);
 });
 
 test("health route includes upstream B2 status", async () => {

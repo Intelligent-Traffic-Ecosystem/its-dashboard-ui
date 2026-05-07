@@ -13,6 +13,7 @@ Contents
 - Alerts
 - Analytics
 - Traffic
+- Public
 - Admin
 - Dashboard
 - Map
@@ -86,6 +87,38 @@ GET /api/traffic/metrics/current
 
 GET /api/traffic/metrics/history?cameraId={cameraId}&from={from}&to={to}
 - Returns historical metric windows for the camera/time range. Window size is implementation-defined (e.g., 5 minutes or 15 minutes).
+
+---
+
+**Public (no authentication)**
+
+These endpoints are read-only and intended for public/user dashboards that do not have an operator session.
+
+GET /api/public/traffic/current
+- Returns current normalized traffic metrics.
+- Response:
+```json
+{ "items": [ /* traffic metric objects */ ], "lastUpdated": "2026-05-07T10:05:00.000Z" }
+```
+
+GET /api/public/locations
+- Returns live public map pins derived from current traffic metrics.
+- Response:
+```json
+{ "items": [ { "id":"CAM-cam_01", "type":"incident", "severity":"warning", "lat":6.0248, "lng":80.2172, "title":"Traffic camera cam_01", "description":"MEDIUM congestion, 32.0 km/h average speed.", "status":"active", "timestamp":"2026-05-07T10:05:00.000Z" } ], "lastUpdated":"2026-05-07T10:05:00.000Z" }
+```
+
+GET /api/public/map/heatmap
+- Returns public heatmap points: `{ lat, lng, weight }`.
+
+GET /api/public/map/incidents
+- Returns public active incident markers: `{ alertId, cameraId, lat, lng, severity, message, timestamp }`.
+
+GET /api/public/map/live
+- Returns one bundled response for public maps:
+```json
+{ "traffic": [], "locations": [], "heatmap": [], "incidents": [], "lastUpdated": "2026-05-07T10:05:00.000Z" }
+```
 
 ---
 
