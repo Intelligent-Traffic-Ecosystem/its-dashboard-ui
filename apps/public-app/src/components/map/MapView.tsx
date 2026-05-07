@@ -1,15 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Map, { GeolocateControl, Layer, Marker, NavigationControl, Source } from "react-map-gl/mapbox";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-import { INCIDENTS } from "@/lib/dummy-data";
+import { getPublicMapData, type HeatmapPoint } from "@/lib/public-map-api";
 import type { Incident, Severity } from "@/lib/types";
 
 const MAP_STYLE = "mapbox://styles/mapbox/navigation-night-v1";
 const COLOMBO_CENTER = { lat: 6.9271, lng: 79.8612 };
-const SOURCE_CENTER = { lat: 51.51, lng: -0.1 };
+const REFRESH_MS = 15000;
 
 function severityColor(severity: Severity): string {
   switch (severity) {
@@ -25,18 +25,10 @@ function severityColor(severity: Severity): string {
   }
 }
 
-function severityWeight(severity: Severity): number {
-  switch (severity) {
-    case "critical":
-      return 4;
-    case "high":
-      return 3;
-    case "medium":
-      return 2;
-    case "low":
-    default:
-      return 1;
-  }
+function heatmapWeight(point: HeatmapPoint): number {
+  if (typeof point.weight === "number") return Math.max(0.1, Math.min(1, point.weight));
+  const score = point.congestionScore ?? 0;
+  return Math.max(0.1, Math.min(1, score / 100));
 }
 
 const heatmapLayerStyle = {
@@ -73,29 +65,77 @@ export interface MapViewProps {
 
 export function MapView({ className = "", activeLayers, onSelectIncident }: MapViewProps) {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  const mappedIncidents = useMemo(
-    () =>
-      INCIDENTS.map((incident) => ({
-        ...incident,
-        lat: COLOMBO_CENTER.lat + (incident.lat - SOURCE_CENTER.lat),
-        lng: COLOMBO_CENTER.lng + (incident.lng - SOURCE_CENTER.lng),
-      })),
-    []
-  );
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [trafficLocations, setTrafficLocations] = useState<Incident[]>([]);
+  const [heatmap, setHeatmap] = useState<HeatmapPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadMapData(showLoading: boolean) {
+      try {
+        if (showLoading) setLoading(true);
+        const data = await getPublicMapData();
+        if (!mounted) return;
+        setHeatmap(data.heatmap);
+        setIncidents(data.incidents);
+        setTrafficLocations(data.trafficLocations);
+        setError(null);
+      } catch (err) {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : "Unable to load map data");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadMapData(true);
+    const interval = window.setInterval(() => loadMapData(false), REFRESH_MS);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, []);
 
   const heatmapGeoJson = useMemo(
     () => ({
       type: "FeatureCollection" as const,
-      features: mappedIncidents.map((i) => ({
-        type: "Feature" as const,
-        properties: { weight: severityWeight(i.severity) },
-        geometry: {
-          type: "Point" as const,
-          coordinates: [i.lng, i.lat] as [number, number],
-        },
-      })),
+      features: heatmap
+        .filter((point) => {
+          const lat = point.lat ?? point.latitude;
+          const lng = point.lng ?? point.longitude;
+          return typeof lat === "number" && typeof lng === "number";
+        })
+        .map((point) => {
+          const lat = point.lat ?? point.latitude;
+          const lng = point.lng ?? point.longitude;
+          return {
+            type: "Feature" as const,
+            properties: {
+              cameraId: point.cameraId ?? point.camera_id,
+              weight: heatmapWeight(point),
+              vehicleCount: point.vehicleCount ?? point.vehicle_count ?? 0,
+              congestionScore: point.congestionScore ?? 0,
+            },
+            geometry: {
+              type: "Point" as const,
+              coordinates: [lng as number, lat as number] as [number, number],
+            },
+          };
+        }),
     }),
-    [mappedIncidents]
+    [heatmap]
+  );
+
+  const allMarkers = useMemo(
+    () => [
+      ...(activeLayers.has("flow") ? trafficLocations : []),
+      ...(activeLayers.has("incidents") ? incidents : []),
+    ],
+    [activeLayers, incidents, trafficLocations]
   );
 
   if (!token) {
@@ -150,27 +190,38 @@ export function MapView({ className = "", activeLayers, onSelectIncident }: MapV
           </Source>
         )}
 
-        {activeLayers.has("incidents") &&
-          mappedIncidents.map((incident) => (
-            <Marker
-              key={incident.id}
-              longitude={incident.lng}
-              latitude={incident.lat}
-              anchor="center"
-              onClick={(e) => {
-                e.originalEvent.stopPropagation();
-                onSelectIncident(incident);
-              }}
-            >
-              <button
-                type="button"
-                className="size-3 rounded-full border-2 border-white/30 shadow-md transition-transform hover:scale-125 focus:outline-none focus:ring-2 focus:ring-secondary"
-                style={{ backgroundColor: severityColor(incident.severity) }}
-                aria-label={`Incident ${incident.id} at ${incident.location}`}
-              />
-            </Marker>
-          ))}
+        {allMarkers.map((incident) => (
+          <Marker
+            key={incident.id}
+            longitude={incident.lng}
+            latitude={incident.lat}
+            anchor="center"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              onSelectIncident(incident);
+            }}
+          >
+            <button
+              type="button"
+              className="size-3 rounded-full border-2 border-white/30 shadow-md transition-transform hover:scale-125 focus:outline-none focus:ring-2 focus:ring-secondary"
+              style={{ backgroundColor: severityColor(incident.severity) }}
+              aria-label={`Incident ${incident.id} at ${incident.location}`}
+            />
+          </Marker>
+        ))}
       </Map>
+      <div className="pointer-events-none absolute left-3 top-3 z-10 flex flex-col gap-2">
+        {loading && (
+          <span className="rounded-lg bg-black/60 px-3 py-1.5 text-xs text-white shadow-lg">
+            Loading live traffic data...
+          </span>
+        )}
+        {error && (
+          <span className="max-w-xs rounded-lg border border-red-400/30 bg-red-950/80 px-3 py-1.5 text-xs text-red-100 shadow-lg">
+            Map data unavailable. {error}
+          </span>
+        )}
+      </div>
       <div
         className="pointer-events-none absolute inset-0"
         style={{
