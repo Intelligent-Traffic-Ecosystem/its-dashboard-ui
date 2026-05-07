@@ -68,3 +68,17 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       BACKEND_URL: ${BACKEND_URL:-http://localhost:5000}
     restart: on-failure
+
+  b3-admin-dashboard:
+    image: ${B3_ADMIN_DASHBOARD_IMAGE:-its-b3-admin-dashboard:latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.admin-dashboard
+    depends_on:
+      - b3-backend
+    ports:
+      - "${B3_ADMIN_DASHBOARD_PORT:-3001}:3001"
+    environment:
+      PORT: 3001
+      NODE_ENV: ${NODE_ENV:-production}
+    restart: on-failure
