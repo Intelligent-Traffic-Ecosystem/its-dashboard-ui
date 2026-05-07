@@ -74,7 +74,6 @@ export default function PeakHourChart({ cameraId, from, to }: PeakHourChartProps
     );
   }
 
-  const maxScore = Math.max(...hourlyData.map((d) => d.score), 100);
   const peakHourTime = trends?.peakHour?.timestamp
     ? new Date(trends.peakHour.timestamp).getHours().toString().padStart(2, "0") + ":00"
     : null;

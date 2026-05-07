@@ -1,9 +1,14 @@
 "use client";
 
 import { useAlertHistory, formatAlertTime } from "@/lib/hooks/useB3Backend";
+import type { AlertHistoryFilters } from "@/lib/b3-backend";
 
-export default function AlertHistory() {
-  const { data: alertHistory, loading, error } = useAlertHistory(undefined, 3, 0);
+interface AlertHistoryProps {
+  filters?: AlertHistoryFilters;
+}
+
+export default function AlertHistory({ filters }: AlertHistoryProps) {
+  const { data: alertHistory, loading, error } = useAlertHistory(filters ?? { limit: 3, offset: 0 });
 
   if (loading) {
     return (

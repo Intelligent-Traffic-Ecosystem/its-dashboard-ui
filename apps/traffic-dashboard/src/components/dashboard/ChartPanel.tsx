@@ -5,8 +5,9 @@
  * updated in real time via Socket.IO.
  * REQ-FR-004: Time range selector — Last 1H / 6H / 24H (P2).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getSocket, type TrafficMetric } from "@/lib/socket";
+import { useCurrentCongestion } from "@/lib/hooks/useB3Backend";
 
 interface DataPoint { t: number; v: number }
 
@@ -23,9 +24,8 @@ const PAD = { t: 8, r: 8, b: 24, l: 36 };
 const INNER_W = W - PAD.l - PAD.r;
 const INNER_H = H - PAD.t - PAD.b;
 
-function toSvg(points: DataPoint[], windowMs: number) {
+function toSvg(points: DataPoint[], windowMs: number, now: number) {
   if (points.length < 2) return { line: "", area: "" };
-  const now = Date.now();
   const minT = now - windowMs;
   const maxV = Math.max(...points.map((p) => p.v), 1);
 
@@ -40,8 +40,7 @@ function toSvg(points: DataPoint[], windowMs: number) {
   return { line, area };
 }
 
-function xLabels(windowMs: number, count = 7) {
-  const now = Date.now();
+function xLabels(windowMs: number, now: number, count = 7) {
   return Array.from({ length: count }, (_, i) => {
     const t = now - windowMs + (i / (count - 1)) * windowMs;
     const d = new Date(t);
@@ -61,9 +60,16 @@ function yGridLines(maxV: number, count = 4) {
 }
 
 export default function ChartPanel() {
+  const { data: initialMetrics } = useCurrentCongestion();
   const [range, setRange] = useState<Range>("1H");
   const [allPoints, setAllPoints] = useState<DataPoint[]>([]);
   const [avgScore, setAvgScore] = useState<number | null>(null);
+  const [now, setNow] = useState(() => new Date().getTime());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date().getTime()), 5_000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const socket = getSocket();
@@ -72,11 +78,11 @@ export default function ChartPanel() {
       const total = data.reduce((s, m) => s + m.vehicleCount, 0);
       const score = data.reduce((s, m) => s + m.congestionScore, 0) / data.length;
       setAvgScore(Math.round(score));
-      const now = Date.now();
+      const pointTime = new Date().getTime();
       setAllPoints((prev) => {
-        const next = [...prev, { t: now, v: total }];
+        const next = [...prev, { t: pointTime, v: total }];
         // prune older than 24h (max range)
-        const cutoff = now - RANGE_MS["24H"];
+        const cutoff = pointTime - RANGE_MS["24H"];
         return next.filter((p) => p.t >= cutoff);
       });
     };
@@ -85,13 +91,25 @@ export default function ChartPanel() {
   }, []);
 
   const windowMs = RANGE_MS[range];
-  const cutoff = Date.now() - windowMs;
-  const visible = allPoints.filter((p) => p.t >= cutoff);
+  const initialPoint = useMemo(() => {
+    if (!initialMetrics?.length) return null;
+    const total = initialMetrics.reduce((s, m) => s + m.vehicleCount, 0);
+    const latest = initialMetrics
+      .map((m) => (m.windowEnd ? new Date(m.windowEnd).getTime() : 0))
+      .reduce((a, b) => Math.max(a, b), 0);
+    return { t: latest || now, v: total };
+  }, [initialMetrics, now]);
+  const seedPoints = allPoints.length ? allPoints : initialPoint ? [initialPoint] : [];
+  const cutoff = now - windowMs;
+  const visible = seedPoints.filter((p) => p.t >= cutoff);
   const maxV = Math.max(...visible.map((p) => p.v), 1);
-  const { line, area } = toSvg(visible, windowMs);
-  const labels = xLabels(windowMs);
+  const { line, area } = toSvg(visible, windowMs, now);
+  const labels = xLabels(windowMs, now);
   const grid   = yGridLines(maxV);
-  const load   = avgScore ?? 0;
+  const initialAvgScore = initialMetrics?.length
+    ? Math.round(initialMetrics.reduce((s, m) => s + m.congestionScore, 0) / initialMetrics.length)
+    : null;
+  const load   = avgScore ?? initialAvgScore ?? 0;
 
   return (
     <div className="bg-surface-container border border-white/10 rounded p-md space-y-6">
@@ -161,7 +179,7 @@ export default function ChartPanel() {
       <div className="pt-4 border-t border-white/5">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold uppercase tracking-widest text-white">CONGESTION LOAD</h3>
-          <span className="text-[10px] font-mono-data text-primary">{avgScore !== null ? `${load}/100` : "—"}</span>
+          <span className="text-[10px] font-mono-data text-primary">{avgScore !== null || initialAvgScore !== null ? `${load}/100` : "—"}</span>
         </div>
         <div className="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
           <div

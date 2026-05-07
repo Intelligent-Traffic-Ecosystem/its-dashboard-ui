@@ -7,6 +7,8 @@
  */
 import { useEffect, useState } from "react";
 import { getSocket, type TrafficMetric } from "@/lib/socket";
+import { useDashboardEvents } from "@/lib/hooks/useB3Backend";
+import type { DashboardEvent } from "@/lib/b3-backend";
 
 interface FeedRow {
   id:        string;
@@ -42,11 +44,39 @@ function metricToRow(m: TrafficMetric): FeedRow {
   };
 }
 
+function eventToRow(event: DashboardEvent, index: number): FeedRow {
+  const ts = event.timestamp ? new Date(event.timestamp) : new Date();
+  const utc = ts.toISOString().slice(11, 19) + " UTC";
+  const level = String(event.congestionLevel || "").toUpperCase();
+  const severityKey =
+    level in SEVERITY
+      ? level
+      : event.severity === "emergency"
+        ? "CRITICAL"
+        : event.severity === "critical"
+          ? "HIGH"
+          : event.severity === "warning"
+            ? "MEDIUM"
+            : "LOW";
+  const sev = SEVERITY[severityKey] ?? SEVERITY.LOW;
+
+  return {
+    id: event.id ?? `${event.cameraId ?? event.camera_id ?? "event"}-${event.timestamp}-${index}`,
+    timestamp: utc,
+    type: event.eventType ?? sev.type,
+    location: event.cameraId ?? event.camera_id ?? "—",
+    severity: sev.label,
+    sevClass: sev.sevClass,
+    sevBg: sev.sevBg,
+  };
+}
+
 const PLACEHOLDER: FeedRow[] = [
   { id:"p1", timestamp:"—", type:"WAITING FOR DATA", location:"—", severity:"—", sevClass:"text-slate-600", sevBg:"bg-surface-variant text-slate-500" },
 ];
 
 export default function LiveEventFeed() {
+  const { data: initialEvents } = useDashboardEvents(10);
   const [rows, setRows]       = useState<FeedRow[]>([]);
   const [connected, setConnected] = useState(false);
 
@@ -60,7 +90,7 @@ export default function LiveEventFeed() {
     socket.on("connect",         onConnect);
     socket.on("disconnect",      onDisconnect);
     socket.on("traffic:metrics", onMetrics);
-    if (socket.connected) setConnected(true);
+    queueMicrotask(() => setConnected(socket.connected));
 
     return () => {
       socket.off("connect",         onConnect);
@@ -70,7 +100,9 @@ export default function LiveEventFeed() {
   }, []);
 
   // REQ-FR-005: display 10 most recent events
-  const display = rows.length ? rows.slice(0, 10) : PLACEHOLDER;
+  const seededRows = initialEvents?.map(eventToRow).slice(0, 50) ?? [];
+  const displayRows = rows.length ? rows : seededRows;
+  const display = displayRows.length ? displayRows.slice(0, 10) : PLACEHOLDER;
 
   return (
     <div className="bg-surface-container border border-white/10 rounded p-md">
@@ -120,7 +152,7 @@ export default function LiveEventFeed() {
       </div>
 
       <div className="mt-3 pt-3 border-t border-white/5 flex justify-between text-[9px] font-mono-data text-slate-600">
-        <span>SHOWING 10 OF {rows.length} EVENTS THIS SESSION</span>
+        <span>SHOWING 10 OF {displayRows.length} EVENTS THIS SESSION</span>
         <span>AUTO-REFRESH · 5s INTERVAL</span>
       </div>
     </div>

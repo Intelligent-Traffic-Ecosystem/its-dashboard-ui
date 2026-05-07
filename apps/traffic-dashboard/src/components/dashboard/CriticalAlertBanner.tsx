@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { getSocket, type TrafficAlert } from "@/lib/socket";
+import { useAcknowledgeAlert, useActiveAlerts } from "@/lib/hooks/useB3Backend";
 
 export default function CriticalAlertBanner() {
-  const [alert, setAlert] = useState<TrafficAlert | null>(null);
+  const { data: activeAlerts } = useActiveAlerts();
+  const { acknowledge, loading: acknowledging } = useAcknowledgeAlert();
+  const [liveAlert, setLiveAlert] = useState<TrafficAlert | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
 
   useEffect(() => {
@@ -12,7 +15,7 @@ export default function CriticalAlertBanner() {
 
     const onAlert = (data: TrafficAlert) => {
       if (data.severity === "critical" || data.severity === "emergency") {
-        setAlert(data);
+        setLiveAlert(data);
         setDismissed(null);
       }
     };
@@ -21,7 +24,20 @@ export default function CriticalAlertBanner() {
     return () => { socket.off("alert:new", onAlert); };
   }, []);
 
+  const restAlert = activeAlerts?.find(
+    (item) => item.severity === "critical" || item.severity === "emergency"
+  ) as TrafficAlert | undefined;
+  const alert = liveAlert ?? restAlert ?? null;
+
   if (!alert || alert.id === dismissed) return null;
+
+  const handleAcknowledge = async () => {
+    try {
+      await acknowledge(alert.id);
+    } finally {
+      setDismissed(alert.id);
+    }
+  };
 
   return (
     <div className="critical-pulse border border-error/20 rounded-lg p-4 flex items-center justify-between shadow-xl">
@@ -40,10 +56,11 @@ export default function CriticalAlertBanner() {
         </div>
       </div>
       <button
-        onClick={() => setDismissed(alert.id)}
+        onClick={handleAcknowledge}
+        disabled={acknowledging}
         className="bg-white text-error-container font-headline-md text-xs font-bold py-2 px-6 rounded uppercase hover:bg-white/90 active:opacity-80 transition-all shrink-0"
       >
-        Acknowledge
+        {acknowledging ? "Acknowledging" : "Acknowledge"}
       </button>
     </div>
   );

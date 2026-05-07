@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { AnalyticsMetrics } from "@/lib/b3-backend";
 import { getSocket, type TrafficMetric } from "@/lib/socket";
 
-export default function CongestionIndexChart() {
+interface CongestionIndexChartProps {
+  metricsSummary?: AnalyticsMetrics | null;
+}
+
+export default function CongestionIndexChart({ metricsSummary }: CongestionIndexChartProps) {
   const [metrics, setMetrics] = useState<TrafficMetric[]>([]);
 
   useEffect(() => {
@@ -15,9 +20,14 @@ export default function CongestionIndexChart() {
 
   // One bar per camera; fall back to placeholder bars while no data
   const bars: { label: string; height: number }[] =
-    metrics.length > 0
+    metricsSummary?.peak_hour_distribution.length
+      ? metricsSummary.peak_hour_distribution.map((hour) => ({
+          label: `${String(hour.hour).padStart(2, "0")}:00`,
+          height: Math.round(hour.avg_congestion_score),
+        }))
+      : metrics.length > 0
       ? metrics.map((m) => ({ label: m.cameraId, height: Math.round(m.congestionScore) }))
-      : [40, 55, 45, 70, 65, 30, 50, 85, 60, 40].map((h, i) => ({ label: `—`, height: h }));
+      : [40, 55, 45, 70, 65, 30, 50, 85, 60, 40].map((h) => ({ label: `—`, height: h }));
 
   const maxH = Math.max(...bars.map((b) => b.height), 1);
 
@@ -25,7 +35,7 @@ export default function CongestionIndexChart() {
     <div className="col-span-8 bg-surface-container border border-white/10 p-lg rounded-xl flex flex-col h-100">
       <div className="flex justify-between items-center mb-xl">
         <h3 className="font-title-sm text-title-sm text-on-surface font-semibold">
-          Live Congestion Score — Per Camera
+          {metricsSummary ? "Historical Congestion Score — Peak Hours" : "Live Congestion Score — Per Camera"}
         </h3>
         <div className="flex items-center gap-md">
           <span className="flex items-center gap-xs text-xs text-on-surface-variant">
@@ -34,7 +44,7 @@ export default function CongestionIndexChart() {
           </span>
           <span className="flex items-center gap-xs text-xs text-on-surface-variant">
             <span className="w-2 h-2 rounded-full bg-outline-variant inline-block" />
-            {metrics.length > 0 ? `${metrics.length} cameras` : "demo data"}
+            {metricsSummary ? `${bars.length} hourly windows` : metrics.length > 0 ? `${metrics.length} cameras` : "demo data"}
           </span>
         </div>
       </div>
@@ -59,7 +69,9 @@ export default function CongestionIndexChart() {
       </div>
 
       <div className="flex justify-between mt-md px-md text-[10px] text-on-surface-variant font-mono-data">
-        {metrics.length > 0 ? (
+        {metricsSummary ? (
+          bars.slice(0, 8).map((bar) => <span key={bar.label}>{bar.label}</span>)
+        ) : metrics.length > 0 ? (
           metrics.map((m) => <span key={m.cameraId}>{m.cameraId}</span>)
         ) : (
           <>

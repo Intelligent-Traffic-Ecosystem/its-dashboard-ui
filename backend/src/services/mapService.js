@@ -1,3 +1,5 @@
+const { getCoordinateForCamera } = require("../mappers/mapFeatureMapper");
+
 /**
  * MapService — Heatmap and incident marker data for Mapbox
  */
@@ -18,29 +20,31 @@ class MapService {
             const currentMetrics = await this.trafficService.getCurrentCongestion();
             const cameras = this.adminService.listCameras();
 
-            // Create a map of camera_id -> camera info
-            const cameraMap = new Map(cameras.map((c) => [c.camera_id, c]));
+            const cameraMap = new Map(cameras.map((c) => [c.camera_id || c.cameraId, c]));
 
             // Calculate max vehicle count for normalization
-            const maxVehicleCount = Math.max(...currentMetrics.map((m) => m.vehicle_count || 0), 1);
+            const maxVehicleCount = Math.max(...currentMetrics.map((m) => m.vehicleCount || 0), 1);
 
             // Build heatmap points with lat/lng from camera registry
             const heatmapPoints = currentMetrics
-                .filter((metric) => {
-                    const camera = cameraMap.get(metric.camera_id);
-                    // Only include cameras with coordinates
-                    return camera && camera.latitude !== null && camera.longitude !== null;
-                })
                 .map((metric) => {
-                    const camera = cameraMap.get(metric.camera_id);
-                    const weight = Math.min((metric.vehicle_count || 0) / maxVehicleCount, 1.0);
+                    const camera = cameraMap.get(metric.cameraId);
+                    const fallback = getCoordinateForCamera(metric.cameraId);
+                    const latitude = camera?.latitude ?? camera?.lat ?? fallback.lat;
+                    const longitude = camera?.longitude ?? camera?.lng ?? fallback.lng;
+                    const weight = Math.min((metric.vehicleCount || 0) / maxVehicleCount, 1.0);
 
                     return {
-                        camera_id: metric.camera_id,
-                        latitude: camera.latitude,
-                        longitude: camera.longitude,
+                        camera_id: metric.cameraId,
+                        cameraId: metric.cameraId,
+                        latitude,
+                        longitude,
+                        lat: latitude,
+                        lng: longitude,
                         weight: parseFloat(weight.toFixed(2)),
-                        vehicle_count: metric.vehicle_count || 0,
+                        vehicle_count: metric.vehicleCount || 0,
+                        vehicleCount: metric.vehicleCount || 0,
+                        congestionScore: metric.congestionScore || 0,
                     };
                 });
 
@@ -59,22 +63,31 @@ class MapService {
             const activeAlerts = await this.alertService.listActiveAlerts();
             const cameras = this.adminService.listCameras();
 
-            // Create a map of camera_id -> camera info
-            const cameraMap = new Map(cameras.map((c) => [c.camera_id, c]));
+            const cameraMap = new Map(cameras.map((c) => [c.camera_id || c.cameraId, c]));
 
             // Build incident markers
             const incidents = activeAlerts.map((alert) => {
                 const camera = cameraMap.get(alert.cameraId);
+                const fallback = getCoordinateForCamera(alert.cameraId);
+                const latitude = camera?.latitude ?? camera?.lat ?? fallback.lat;
+                const longitude = camera?.longitude ?? camera?.lng ?? fallback.lng;
 
                 return {
                     alert_id: alert.id,
+                    alertId: alert.id,
                     camera_id: alert.cameraId,
-                    latitude: camera ? camera.latitude : null,
-                    longitude: camera ? camera.longitude : null,
+                    cameraId: alert.cameraId,
+                    latitude,
+                    longitude,
+                    lat: latitude,
+                    lng: longitude,
                     severity: alert.severity,
                     alert_type: alert.type || "congestion",
+                    alertType: alert.type || "congestion",
                     title: alert.title,
-                    triggered_at: alert.triggeredAt || new Date().toISOString(),
+                    message: alert.description,
+                    timestamp: alert.timestamp || alert.triggeredAt || new Date().toISOString(),
+                    triggered_at: alert.timestamp || alert.triggeredAt || new Date().toISOString(),
                 };
             });
 

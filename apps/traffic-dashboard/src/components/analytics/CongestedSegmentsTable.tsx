@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { AnalyticsMetrics } from "@/lib/b3-backend";
 import { getSocket, type TrafficMetric } from "@/lib/socket";
 
 const LEVEL_STYLE = {
@@ -16,7 +17,11 @@ const STATIC_SEGMENTS = [
   { id: "99 Tunnel (South Entrance)",    speed: "44.8 mph", freq: 22, freqColor: "bg-secondary-container", trend: "0%",   trendColor: "text-on-surface-variant",  trendIcon: "trending_flat", status: "MODERATE", statusBg: "bg-surface-container-highest text-on-surface-variant" },
 ];
 
-export default function CongestedSegmentsTable() {
+interface CongestedSegmentsTableProps {
+  metricsSummary?: AnalyticsMetrics | null;
+}
+
+export default function CongestedSegmentsTable({ metricsSummary }: CongestedSegmentsTableProps) {
   const [metrics, setMetrics] = useState<TrafficMetric[]>([]);
 
   useEffect(() => {
@@ -27,13 +32,14 @@ export default function CongestedSegmentsTable() {
     return () => { socket.off("traffic:congestion", onCongestion); };
   }, []);
 
-  const useLive = metrics.length > 0;
+  const useApi = Boolean(metricsSummary?.top_segments.length);
+  const useLive = !useApi && metrics.length > 0;
 
   return (
     <div className="col-span-12 lg:col-span-9 bg-surface-container border border-white/10 rounded-xl overflow-hidden">
       <div className="p-lg flex justify-between items-center border-b border-white/5">
         <h3 className="font-title-sm text-title-sm text-on-surface font-semibold">
-          {useLive ? "Live Camera Congestion" : "Top 10 Congested Segments"}
+          {useApi ? "Historical Congested Segments" : useLive ? "Live Camera Congestion" : "Top 10 Congested Segments"}
         </h3>
         <div className="flex gap-sm">
           <button className="bg-surface-variant p-1 rounded hover:bg-surface-container-highest transition-colors">
@@ -57,7 +63,32 @@ export default function CongestedSegmentsTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5 font-mono-data text-body-sm">
-            {useLive
+            {useApi
+              ? metricsSummary!.top_segments.map((segment) => {
+                  const score = Math.round(segment.avg_congestion_score);
+                  const status = score >= 80 ? LEVEL_STYLE.CRITICAL : score >= 55 ? LEVEL_STYLE.HIGH : score >= 30 ? LEVEL_STYLE.MEDIUM : LEVEL_STYLE.LOW;
+                  return (
+                    <tr key={segment.camera_id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-lg py-md text-on-surface">{segment.road_segment || segment.camera_id}</td>
+                      <td className="px-lg py-md">—</td>
+                      <td className="px-lg py-md">
+                        <div className="flex items-center gap-sm">
+                          <div className="w-24 h-1.5 bg-surface-variant rounded-full">
+                            <div className={`h-full ${status.bar} rounded-full`} style={{ width: `${Math.min(score, 100)}%` }} />
+                          </div>
+                          <span>{score}</span>
+                        </div>
+                      </td>
+                      <td className="px-lg py-md">{segment.severe_minutes.toFixed(0)} min severe</td>
+                      <td className="px-lg py-md">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${status.badge}`}>
+                          {status.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              : useLive
               ? metrics.map((m) => {
                   const style = LEVEL_STYLE[m.congestionLevel] ?? LEVEL_STYLE.LOW;
                   const freq = Math.round(m.congestionScore);

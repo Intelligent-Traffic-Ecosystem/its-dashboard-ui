@@ -3,16 +3,13 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { getSocket, type TrafficAlert } from "@/lib/socket";
+import { getSocket } from "@/lib/socket";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/analytics", label: "Historical Analytics" },
   { href: "/reports", label: "Reports" },
 ];
-
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL || "http://localhost:3003";
 
 export default function TopNavBar() {
   const pathname = usePathname();
@@ -23,12 +20,12 @@ export default function TopNavBar() {
     const socket = getSocket();
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
-    const onAlert = (_: TrafficAlert) => setAlertCount((n) => n + 1);
+    const onAlert = () => setAlertCount((n) => n + 1);
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
     socket.on("alert:new", onAlert);
-    if (socket.connected) setConnected(true);
+    queueMicrotask(() => setConnected(socket.connected));
 
     return () => {
       socket.off("connect", onConnect);

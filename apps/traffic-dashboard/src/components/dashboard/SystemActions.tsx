@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from "react";
 import { getSocket, type TrafficMetric } from "@/lib/socket";
+import { useB3Health } from "@/lib/hooks/useB3Backend";
 
 const ACTIONS = [
   { icon: "videocam_off",      label: "Reboot Camera",  hoverColor: "hover:border-primary/50 hover:bg-primary/5",   iconClass: "text-primary" },
@@ -15,6 +16,7 @@ const ACTIONS = [
 ];
 
 export default function SystemActions() {
+  const { data: health, error: healthError } = useB3Health();
   const [connected, setConnected]   = useState(false);
   const [latency, setLatency]       = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
@@ -22,7 +24,6 @@ export default function SystemActions() {
 
   useEffect(() => {
     const socket = getSocket();
-    let staleTimer: ReturnType<typeof setInterval>;
 
     const onConnect = () => {
       setConnected(true);
@@ -44,10 +45,10 @@ export default function SystemActions() {
     socket.on("connect",         onConnect);
     socket.on("disconnect",      onDisconnect);
     socket.on("traffic:metrics", onMetrics);
-    if (socket.connected) { setConnected(true); }
+    queueMicrotask(() => setConnected(socket.connected));
 
     // REQ-DR-004: poll for staleness every 5s
-    staleTimer = setInterval(() => {
+    const staleTimer = setInterval(() => {
       setStale((prev) => {
         if (lastUpdate === null) return prev;
         return Date.now() - lastUpdate > 30_000;
@@ -60,21 +61,21 @@ export default function SystemActions() {
       socket.off("traffic:metrics", onMetrics);
       clearInterval(staleTimer);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastUpdate]);
 
   const statusItems = [
     {
       label: "B3 Backend",
-      value: connected ? (latency !== null ? `${latency}ms` : "connected") : "offline",
-      ok: connected,
+      value: healthError ? "unreachable" : health ? (latency !== null ? `${latency}ms` : health.status) : connected ? "connected" : "checking",
+      ok: !healthError && (connected || health?.status === "ok" || health?.status === "degraded"),
+      warn: health?.status === "degraded",
     },
     {
       label: "Data Feed",
       // REQ-DR-004: stale indicator
-      value: !connected ? "no connection" : stale ? "STALE >30s" : lastUpdate ? "live" : "waiting",
-      ok: connected && !stale && lastUpdate !== null,
-      warn: stale,
+      value: !connected ? "no connection" : stale ? "STALE >30s" : lastUpdate ? "live" : health?.upstream?.b2?.status ?? "waiting",
+      ok: connected && !stale && (lastUpdate !== null || health?.upstream?.b2?.status === "ok"),
+      warn: stale || health?.upstream?.b2?.status === "unreachable",
     },
   ];
 

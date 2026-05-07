@@ -36,6 +36,105 @@ export interface AlertHistory {
     };
 }
 
+export interface AlertHistoryFilters {
+    cameraId?: string;
+    severity?: string;
+    from?: string;
+    to?: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface TrafficMetric {
+    cameraId: string;
+    windowStart: string | null;
+    windowEnd: string | null;
+    laneId: number | null;
+    vehicleCount: number;
+    countsByClass: Record<string, number>;
+    averageSpeedKmh: number;
+    stoppedRatio: number;
+    queueLength: number;
+    congestionLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    congestionScore: number;
+    stale: boolean;
+}
+
+export interface DashboardSummary {
+    total_incidents_24h: number;
+    total_vehicles?: number;
+    avg_speed_kmh: number;
+    overall_congestion_level: string;
+    overall_congestion_score: number;
+    active_alerts?: number;
+    active_alerts_count?: number;
+    last_updated?: string;
+    lastUpdated?: string;
+}
+
+export interface DashboardEvent {
+    id?: string;
+    cameraId?: string;
+    camera_id?: string;
+    timestamp: string;
+    eventType?: string;
+    vehicleClass?: string;
+    vehicle_class?: string;
+    speedKmh?: number;
+    speed_kmh?: number;
+    laneId?: number | null;
+    lane_id?: number | null;
+    severity?: string;
+    congestionLevel?: string;
+    congestionScore?: number;
+    vehicleCount?: number;
+}
+
+export interface HeatmapPoint {
+    cameraId?: string;
+    camera_id?: string;
+    lat?: number;
+    lng?: number;
+    latitude?: number;
+    longitude?: number;
+    weight: number;
+    vehicleCount?: number;
+    vehicle_count?: number;
+    congestionScore?: number;
+}
+
+export interface MapIncident {
+    alertId?: string;
+    alert_id?: string;
+    cameraId?: string;
+    camera_id?: string;
+    lat?: number;
+    lng?: number;
+    latitude?: number;
+    longitude?: number;
+    severity: TrafficAlert["severity"] | string;
+    alertType?: string;
+    alert_type?: string;
+    title: string;
+    message?: string;
+    timestamp?: string;
+    triggered_at?: string;
+}
+
+export interface HealthStatus {
+    status: string;
+    service?: string;
+    uptime?: number;
+    upstream?: {
+        b2?: {
+            status?: string;
+            kafka?: string;
+            postgres?: string;
+        };
+    };
+    b2Status?: string;
+}
+
 export interface AnalyticsTrend {
     cameraId: string;
     from: string;
@@ -64,6 +163,44 @@ export interface AnalyticsTrend {
     }>;
 }
 
+export interface AnalyticsSummary {
+    cameraId: string;
+    from: string;
+    to: string;
+    totalWindows: number;
+    totalVehicles: number;
+    averageCongestionScore: number;
+    averageSpeedKmh: number;
+    peakWindow: TrafficMetric | null;
+    series: TrafficMetric[];
+}
+
+export interface AnalyticsMetrics {
+    range_start: string;
+    range_end: string;
+    avg_congestion_score: number;
+    peak_hour_distribution: Array<{
+        hour: number;
+        avg_vehicle_count: number;
+        avg_congestion_score: number;
+    }>;
+    top_segments: Array<{
+        camera_id: string;
+        road_segment: string | null;
+        avg_congestion_score: number;
+        severe_minutes: number;
+    }>;
+    incident_pie: Array<{
+        severity: string;
+        count: number;
+    }>;
+}
+
+export interface AnalyticsComparison {
+    range_a: AnalyticsMetrics;
+    range_b: AnalyticsMetrics;
+}
+
 const BASE = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
 async function get<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -86,6 +223,16 @@ async function get<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const b3Backend = {
+    dashboard: {
+        getSummary: () => get<DashboardSummary>("/api/dashboard/summary"),
+        getEvents: (limit: number = 10) =>
+            get<DashboardEvent[]>(
+                `/api/dashboard/events?${new URLSearchParams({
+                    limit: limit.toString(),
+                }).toString()}`
+            ),
+    },
+
     // Alerts API
     alerts: {
         /**
@@ -99,14 +246,32 @@ export const b3Backend = {
          * @param limit - Number of results (default: 100, max: 1000)
          * @param offset - Pagination offset (default: 0)
          */
-        getHistory: (cameraId?: string, limit: number = 100, offset: number = 0) =>
+        getHistory: (cameraIdOrFilters?: string | AlertHistoryFilters, limit: number = 100, offset: number = 0) => {
+            const filters = typeof cameraIdOrFilters === "object"
+                ? cameraIdOrFilters
+                : { cameraId: cameraIdOrFilters, limit, offset };
+            return (
             get<AlertHistory>(
                 `/api/alerts/history?${new URLSearchParams({
-                    ...(cameraId && { cameraId }),
-                    limit: limit.toString(),
-                    offset: offset.toString(),
+                    ...(filters.cameraId && { cameraId: filters.cameraId }),
+                    ...(filters.severity && { severity: filters.severity }),
+                    ...(filters.from && { from: filters.from }),
+                    ...(filters.to && { to: filters.to }),
+                    limit: String(filters.limit ?? limit),
+                    offset: String(filters.offset ?? offset),
                 }).toString()}`
-            ),
+            )
+            );
+        },
+
+        getExportCsvUrl: (filters: AlertHistoryFilters = {}) =>
+            `${BASE}/api/alerts/export?${new URLSearchParams({
+                ...(filters.cameraId && { camera_id: filters.cameraId }),
+                ...(filters.severity && { severity: filters.severity }),
+                ...(filters.from && { from: filters.from }),
+                ...(filters.to && { to: filters.to }),
+                limit: String(filters.limit ?? 500000),
+            }).toString()}`,
 
         /**
          * Acknowledge an alert
@@ -128,7 +293,7 @@ export const b3Backend = {
          * @param to - End timestamp (ISO 8601)
          */
         getSummary: (cameraId: string, from: string, to: string) =>
-            get(
+            get<AnalyticsSummary>(
                 `/api/analytics/summary?${new URLSearchParams({
                     cameraId,
                     from,
@@ -149,6 +314,27 @@ export const b3Backend = {
                     to,
                 }).toString()}`
             ),
+
+        getMetrics: (from: string, to: string) =>
+            get<AnalyticsMetrics>(
+                `/api/analytics/metrics?${new URLSearchParams({
+                    from,
+                    to,
+                }).toString()}`
+            ),
+
+        compare: (aFrom: string, aTo: string, bFrom: string, bTo: string) =>
+            get<AnalyticsComparison>(
+                `/api/analytics/compare?${new URLSearchParams({
+                    aFrom,
+                    aTo,
+                    bFrom,
+                    bTo,
+                }).toString()}`
+            ),
+
+        getReportPdfUrl: (from: string, to: string) =>
+            `${BASE}/api/analytics/report/pdf?${new URLSearchParams({ from, to }).toString()}`,
     },
 
     // Traffic API
@@ -184,6 +370,12 @@ export const b3Backend = {
          * Get current congestion across all cameras
          */
         getCurrentCongestion: () => get("/api/traffic/congestion/current"),
+        getCurrentCongestionTyped: () => get<TrafficMetric[]>("/api/traffic/congestion/current"),
+    },
+
+    map: {
+        getHeatmap: () => get<HeatmapPoint[]>("/api/map/heatmap"),
+        getIncidents: () => get<MapIncident[]>("/api/map/incidents"),
     },
 
     // Locations API
@@ -199,7 +391,7 @@ export const b3Backend = {
         /**
          * Get backend health status
          */
-        check: () => get("/health"),
+        check: () => get<HealthStatus>("/health"),
     },
 };
 

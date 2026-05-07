@@ -1,15 +1,20 @@
-export default function DataCoveragePanel() {
-  // Circle: r=28, circumference = 2πr ≈ 175.9
-  // 90% fill → dashoffset = 10% of 175.9 ≈ 17.5
+import type { AnalyticsSummary } from "@/lib/b3-backend";
+
+interface DataCoveragePanelProps {
+  summary?: AnalyticsSummary | null;
+  cameraCount: number;
+}
+
+export default function DataCoveragePanel({ summary, cameraCount }: DataCoveragePanelProps) {
+  const expectedWindows = Math.max(cameraCount, 1) * 24;
+  const pct = Math.max(0, Math.min(100, Math.round(((summary?.totalWindows ?? 0) / expectedWindows) * 100)));
   const circumference = 175.9;
-  const pct = 90;
   const offset = circumference * ((100 - pct) / 100);
 
   return (
     <div className="bg-surface-container border border-white/10 p-lg rounded-xl">
       <h4 className="font-title-sm text-on-surface mb-md font-semibold text-[18px]">Data Coverage</h4>
       <div className="flex items-center gap-lg">
-        {/* Donut chart */}
         <div className="relative w-16 h-16 flex-shrink-0">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
             <circle
@@ -41,7 +46,9 @@ export default function DataCoveragePanel() {
 
         <div>
           <p className="text-body-sm text-on-surface font-medium">Sensor Reliability</p>
-          <p className="text-[10px] text-on-surface-variant">District 4 IoT Network</p>
+          <p className="text-[10px] text-on-surface-variant">
+            {summary?.totalWindows ?? 0} windows from {cameraCount || 1} selected camera set
+          </p>
         </div>
       </div>
     </div>

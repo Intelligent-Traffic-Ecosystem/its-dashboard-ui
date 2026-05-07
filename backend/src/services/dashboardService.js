@@ -24,9 +24,9 @@ class DashboardService {
             let congestionSum = 0;
 
             currentMetrics.forEach((metric) => {
-                totalVehicles += metric.vehicle_count || 0;
-                totalSpeed += metric.avg_speed_kmh || 0;
-                congestionSum += metric.congestion_score || 0;
+                totalVehicles += metric.vehicleCount || 0;
+                totalSpeed += metric.averageSpeedKmh || 0;
+                congestionSum += metric.congestionScore || 0;
                 metricCount++;
             });
 
@@ -45,21 +45,27 @@ class DashboardService {
 
             return {
                 total_incidents_24h: incidentsIn24h,
+                total_vehicles: totalVehicles,
                 avg_speed_kmh: parseFloat(avgSpeed.toFixed(2)),
                 overall_congestion_level: overallCongestionLevel,
                 overall_congestion_score: parseFloat(overallCongestionScore.toFixed(2)),
                 active_alerts: activeAlertsCount,
+                active_alerts_count: activeAlertsCount,
                 last_updated: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
             };
         } catch (err) {
             console.error("DashboardService.getSummary error:", err);
             return {
                 total_incidents_24h: 0,
+                total_vehicles: 0,
                 avg_speed_kmh: 0,
                 overall_congestion_level: "LOW",
                 overall_congestion_score: 0,
                 active_alerts: 0,
+                active_alerts_count: 0,
                 last_updated: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
             };
         }
     }
@@ -73,11 +79,21 @@ class DashboardService {
             const currentMetrics = await this.trafficService.getCurrentCongestion();
 
             const events = currentMetrics.slice(0, limit).map((metric, idx) => ({
-                camera_id: metric.camera_id,
-                timestamp: new Date(Date.now() - idx * 60000).toISOString(), // Stagger timestamps
-                vehicle_class: this._randomVehicleClass(),
-                speed_kmh: metric.avg_speed_kmh || 0,
-                lane_id: Math.floor(Math.random() * 4) || null,
+                id: `${metric.cameraId}-${metric.windowEnd || idx}`,
+                cameraId: metric.cameraId,
+                camera_id: metric.cameraId,
+                timestamp: metric.windowEnd || metric.windowStart || new Date(Date.now() - idx * 60000).toISOString(),
+                eventType: this._eventTypeFromMetric(metric),
+                vehicleClass: this._primaryVehicleClass(metric),
+                vehicle_class: this._primaryVehicleClass(metric),
+                speedKmh: metric.averageSpeedKmh || 0,
+                speed_kmh: metric.averageSpeedKmh || 0,
+                laneId: metric.laneId,
+                lane_id: metric.laneId,
+                severity: this._severityFromMetric(metric),
+                congestionLevel: metric.congestionLevel,
+                congestionScore: metric.congestionScore,
+                vehicleCount: metric.vehicleCount,
             }));
 
             return events;
@@ -91,19 +107,30 @@ class DashboardService {
      * Helper: map congestion score to level
      */
     _mapScoreToLevel(score) {
-        // Uses hardcoded thresholds for now (could be from AdminService)
-        if (score < 0.3) return "LOW";
-        if (score < 0.55) return "MODERATE";
-        if (score < 0.8) return "HIGH";
+        if (score < 30) return "LOW";
+        if (score < 55) return "MODERATE";
+        if (score < 80) return "HIGH";
         return "SEVERE";
     }
 
-    /**
-     * Helper: random vehicle class for mock events
-     */
-    _randomVehicleClass() {
-        const classes = ["car", "motorcycle", "truck", "bus", "van"];
-        return classes[Math.floor(Math.random() * classes.length)];
+    _primaryVehicleClass(metric) {
+        const entries = Object.entries(metric.countsByClass || {});
+        if (!entries.length) return "vehicle";
+        return entries.sort((a, b) => Number(b[1]) - Number(a[1]))[0][0];
+    }
+
+    _eventTypeFromMetric(metric) {
+        if (metric.congestionLevel === "CRITICAL") return "CONGESTION_CRITICAL";
+        if (metric.congestionLevel === "HIGH") return "CONGESTION_HIGH";
+        if (metric.congestionLevel === "MEDIUM") return "FLOW_DEGRADE";
+        return "FLOW_NORMAL";
+    }
+
+    _severityFromMetric(metric) {
+        if (metric.congestionLevel === "CRITICAL") return "emergency";
+        if (metric.congestionLevel === "HIGH") return "critical";
+        if (metric.congestionLevel === "MEDIUM") return "warning";
+        return "informational";
     }
 }
 
