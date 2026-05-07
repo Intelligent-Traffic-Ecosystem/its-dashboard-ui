@@ -22,7 +22,15 @@ export default function AuthGate({ children }: AuthGateProps) {
         });
 
         if (!response.ok) {
-          window.location.href = `${loginAppUrl}/api/auth/login`;
+          window.location.href = `${loginAppUrl}`;
+          return;
+        }
+
+        const data = await response.json();
+        const roles = data.user?.realm_access?.roles || [];
+        if (!roles.includes("admin")) {
+          // If the user does not have the admin role, redirect to login
+          window.location.href = `${loginAppUrl}`;
           return;
         }
 
@@ -30,7 +38,7 @@ export default function AuthGate({ children }: AuthGateProps) {
           setStatus("ready");
         }
       } catch {
-        window.location.href = `${loginAppUrl}/api/auth/login`;
+        window.location.href = `${loginAppUrl}/login/api/auth/login`;
       }
     }
 

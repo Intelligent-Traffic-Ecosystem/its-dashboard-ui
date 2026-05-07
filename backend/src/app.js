@@ -11,6 +11,10 @@ const createTrafficRouter = require("./routes/traffic");
 const createAnalyticsRouter = require("./routes/analytics");
 const createAlertsRouter = require("./routes/alerts");
 const createHealthRouter = require("./routes/health");
+const createAdminRouter = require("./routes/admin");
+const createDashboardRouter = require("./routes/dashboard");
+const createMapRouter = require("./routes/map");
+const createPublicRouter = require("./routes/public");
 const requireAuth = require("./middleware/requireAuth");
 const errorHandler = require("./middleware/errorHandler");
 const swaggerSpec = require("./swagger");
@@ -19,6 +23,9 @@ const {
   analyticsService,
   alertService,
   healthService,
+  adminService,
+  dashboardService,
+  mapService,
 } = require("./services");
 
 const app = express();
@@ -32,6 +39,13 @@ app.use(morgan("dev"));
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/api/auth", authRoutes);
+app.use(
+  "/api/public",
+  createPublicRouter({
+    trafficService,
+    mapService,
+  })
+);
 app.use("/api/locations", locationRoutes);
 app.use(
   "/api/traffic",
@@ -51,6 +65,27 @@ app.use(
   "/api/alerts",
   createAlertsRouter({
     alertService,
+    requireAuth,
+  })
+);
+app.use(
+  "/api/admin",
+  createAdminRouter({
+    adminService,
+    requireAuth,
+  })
+);
+app.use(
+  "/api/dashboard",
+  createDashboardRouter({
+    dashboardService,
+    requireAuth,
+  })
+);
+app.use(
+  "/api/map",
+  createMapRouter({
+    mapService,
     requireAuth,
   })
 );

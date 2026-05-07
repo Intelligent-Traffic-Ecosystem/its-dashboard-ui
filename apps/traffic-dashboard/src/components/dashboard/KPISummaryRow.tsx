@@ -5,7 +5,8 @@
  * congestion level (Low/Moderate/High/Critical), and active alert count.
  */
 import { useEffect, useState } from "react";
-import { getSocket, type TrafficMetric, type TrafficAlert } from "@/lib/socket";
+import { getSocket, type TrafficMetric } from "@/lib/socket";
+import { useCurrentCongestion, useDashboardSummary } from "@/lib/hooks/useB3Backend";
 
 const LEVEL_ORDER = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 } as const;
 
@@ -41,8 +42,10 @@ function deriveStats(metrics: TrafficMetric[]) {
 }
 
 export default function KPISummaryRow() {
-  const [metrics, setMetrics] = useState<TrafficMetric[]>([]);
-  const [alertCount, setAlertCount] = useState(0);
+  const { data: summary, error: summaryError } = useDashboardSummary();
+  const { data: initialMetrics } = useCurrentCongestion();
+  const [socketMetrics, setSocketMetrics] = useState<TrafficMetric[]>([]);
+  const [sessionAlertCount, setSessionAlertCount] = useState(0);
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
@@ -50,14 +53,14 @@ export default function KPISummaryRow() {
 
     const onConnect    = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
-    const onCongestion = (data: TrafficMetric[]) => setMetrics(data);
-    const onAlert      = (_: TrafficAlert) => setAlertCount((n) => n + 1);
+    const onCongestion = (data: TrafficMetric[]) => setSocketMetrics(data);
+    const onAlert      = () => setSessionAlertCount((n) => n + 1);
 
     socket.on("connect",           onConnect);
     socket.on("disconnect",        onDisconnect);
     socket.on("traffic:congestion", onCongestion);
     socket.on("alert:new",         onAlert);
-    if (socket.connected) setConnected(true);
+    queueMicrotask(() => setConnected(socket.connected));
 
     return () => {
       socket.off("connect",           onConnect);
@@ -67,20 +70,30 @@ export default function KPISummaryRow() {
     };
   }, []);
 
+  const metrics = socketMetrics.length ? socketMetrics : initialMetrics ?? [];
   const s = deriveStats(metrics);
+  const summaryLevel = summary?.overall_congestion_level === "MODERATE"
+    ? "MEDIUM"
+    : summary?.overall_congestion_level === "SEVERE"
+      ? "CRITICAL"
+      : summary?.overall_congestion_level;
+  const activeIncidents = summary ? summary.total_incidents_24h : s?.incidents;
+  const averageSpeed = summary ? summary.avg_speed_kmh : s?.avgSpeed;
+  const congestionLevel = summaryLevel || s?.maxLevel;
+  const alertCount = (summary?.active_alerts_count ?? summary?.active_alerts ?? 0) + sessionAlertCount;
 
   const kpis = [
     {
       label: "ACTIVE INCIDENTS",
-      value: s ? String(s.incidents).padStart(2, "0") : "—",
-      valueClass: s && s.incidents > 0 ? "text-error" : "text-white",
-      sub: s ? `${metrics.length} cameras online` : connected ? "waiting for data…" : "offline",
-      dot: s ? s.incidents > 0 : false,
+      value: activeIncidents !== undefined ? String(activeIncidents).padStart(2, "0") : "—",
+      valueClass: activeIncidents && activeIncidents > 0 ? "text-error" : "text-white",
+      sub: metrics.length ? `${metrics.length} cameras online` : connected ? "waiting for data…" : summaryError ? "backend unavailable" : "offline",
+      dot: activeIncidents !== undefined ? activeIncidents > 0 : false,
       dotColor: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]",
     },
     {
       label: "AVG NETWORK SPEED",
-      value: s ? Math.round(s.avgSpeed).toString() : "—",
+      value: averageSpeed !== undefined ? Math.round(averageSpeed).toString() : "—",
       unit: "KM/H",
       valueClass: "text-primary",
       sub: connected ? (s?.stale ? "⚠ DATA STALE" : "live · 5s refresh") : "no connection",
@@ -89,8 +102,8 @@ export default function KPISummaryRow() {
     },
     {
       label: "CONGESTION LEVEL",
-      value: s ? LEVEL_LABEL[s.maxLevel] : "—",
-      valueClass: s ? LEVEL_CLASS[s.maxLevel] : "text-slate-500",
+      value: congestionLevel ? LEVEL_LABEL[congestionLevel] ?? congestionLevel : "—",
+      valueClass: congestionLevel ? LEVEL_CLASS[congestionLevel] ?? "text-slate-500" : "text-slate-500",
       sub: "network-wide peak",
       dot: false,
     },
@@ -105,7 +118,7 @@ export default function KPISummaryRow() {
   ];
 
   // REQ-NFR-008: degraded mode notice
-  if (!connected) {
+  if (!connected && !summary) {
     return (
       <div className="col-span-4 bg-surface-container border border-yellow-500/30 rounded p-md text-center text-yellow-400 text-xs font-mono-data tracking-widest">
         ⚠ DEGRADED MODE — Socket.IO offline. Reconnecting…

@@ -12,7 +12,7 @@ interface Layer {
 const LAYERS: Layer[] = [
   { id: "heatmap", label: "Congestion Heatmap", icon: <Flame size={14} />, defaultOn: true },
   { id: "incidents", label: "Incident Markers", icon: <MapPin size={14} />, defaultOn: true },
-  { id: "flow", label: "Traffic Flow", icon: <Navigation size={14} />, defaultOn: false },
+  { id: "flow", label: "Traffic Flow", icon: <Navigation size={14} />, defaultOn: true },
 ];
 
 export const DEFAULT_ACTIVE_LAYERS = new Set(
