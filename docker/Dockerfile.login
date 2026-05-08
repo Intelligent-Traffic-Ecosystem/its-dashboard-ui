@@ -7,8 +7,8 @@ RUN npm ci
 
 COPY apps/login/ ./
 
-ARG BACKEND_URL
-ARG NEXT_PUBLIC_AUTH_LOGIN_URL
+ARG BACKEND_URL=https://its.csproject.org
+ARG NEXT_PUBLIC_AUTH_LOGIN_URL=https://its.csproject.org/login/api/auth/login
 ENV BACKEND_URL=$BACKEND_URL
 ENV NEXT_PUBLIC_AUTH_LOGIN_URL=$NEXT_PUBLIC_AUTH_LOGIN_URL
 
