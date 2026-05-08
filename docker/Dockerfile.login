@@ -7,8 +7,10 @@ RUN npm ci
 
 COPY apps/login/ ./
 
-ARG BACKEND_URL=http://localhost:5000
+ARG BACKEND_URL
+ARG NEXT_PUBLIC_AUTH_LOGIN_URL
 ENV BACKEND_URL=$BACKEND_URL
+ENV NEXT_PUBLIC_AUTH_LOGIN_URL=$NEXT_PUBLIC_AUTH_LOGIN_URL
 
 RUN npm run build
 
@@ -18,7 +20,6 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3003
-ENV BACKEND_URL=http://localhost:5000
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

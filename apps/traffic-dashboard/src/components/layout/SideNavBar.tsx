@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL || "http://localhost:3003";
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL;
 
 const navItems = [
   { href: "/dashboard", icon: "dashboard", label: "Dashboard" },
@@ -17,6 +17,11 @@ export default function SideNavBar() {
   const pathname = usePathname();
 
   async function handleLogout() {
+    if (!backendUrl || !loginAppUrl) {
+      console.error("Missing NEXT_PUBLIC_BACKEND_URL or NEXT_PUBLIC_LOGIN_APP_URL configuration");
+      return;
+    }
+
     try {
       await fetch(`${backendUrl}/api/auth/logout`, {
         method: "POST",

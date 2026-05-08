@@ -3,6 +3,14 @@ const crypto = require("crypto");
 const router = express.Router();
 const requireAuth = require("../middleware/requireAuth");
 
+function getRequiredEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing ${name} configuration`);
+  }
+  return value;
+}
+
 /**
  * Decodes the payload of a JWT without verifying the signature.
  * Returns null if the token is malformed. Callers must treat a null result as an auth failure.
@@ -37,35 +45,39 @@ function decodeJwtPayload(token) {
 // Generates state + nonce, persists them as httpOnly cookies, then redirects to Keycloak.
 // In dev bypass mode, skip Keycloak entirely and use the dev-login shortcut.
 router.get("/begin", (req, res) => {
-  if (process.env.DEV_BYPASS_AUTH === "true") {
-    return res.redirect("/api/auth/dev-login");
+  try {
+    if (process.env.DEV_BYPASS_AUTH === "true") {
+      return res.redirect(getRequiredEnv("DEV_LOGIN_REDIRECT_PATH"));
+    }
+    const state = crypto.randomBytes(32).toString("hex");
+    const nonce = crypto.randomBytes(32).toString("hex");
+
+    const isProd = process.env.NODE_ENV === "production";
+    const stateCookieOpts = {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 10 * 60 * 1000, // 10 minutes
+    };
+
+    res.cookie("oauth_state", state, stateCookieOpts);
+    res.cookie("oauth_nonce", nonce, stateCookieOpts);
+
+    const authUrl = new URL(
+      `${getRequiredEnv("KEYCLOAK_URL")}/realms/${getRequiredEnv("KEYCLOAK_REALM")}/protocol/openid-connect/auth`
+    );
+    authUrl.searchParams.set("client_id", getRequiredEnv("KEYCLOAK_CLIENT_ID"));
+    authUrl.searchParams.set("redirect_uri", getRequiredEnv("KEYCLOAK_REDIRECT_URI"));
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("scope", "openid profile email");
+    authUrl.searchParams.set("state", state);
+    authUrl.searchParams.set("nonce", nonce);
+
+    return res.redirect(authUrl.toString());
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
-  const state = crypto.randomBytes(32).toString("hex");
-  const nonce = crypto.randomBytes(32).toString("hex");
-
-  const isProd = process.env.NODE_ENV === "production";
-  const stateCookieOpts = {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 10 * 60 * 1000, // 10 minutes
-  };
-
-  res.cookie("oauth_state", state, stateCookieOpts);
-  res.cookie("oauth_nonce", nonce, stateCookieOpts);
-
-  const authUrl = new URL(
-    `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/auth`
-  );
-  authUrl.searchParams.set("client_id", process.env.KEYCLOAK_CLIENT_ID);
-  authUrl.searchParams.set("redirect_uri", process.env.KEYCLOAK_REDIRECT_URI);
-  authUrl.searchParams.set("response_type", "code");
-  authUrl.searchParams.set("scope", "openid profile email");
-  authUrl.searchParams.set("state", state);
-  authUrl.searchParams.set("nonce", nonce);
-
-  return res.redirect(authUrl.toString());
 });
 
 /**
@@ -202,20 +214,24 @@ router.get("/callback", async (req, res) => {
 // GET /api/auth/dev-login  — DEVELOPMENT ONLY, bypasses Keycloak entirely
 // Only active when DEV_BYPASS_AUTH=true; returns 404 in production.
 router.get("/dev-login", (req, res) => {
-  if (process.env.DEV_BYPASS_AUTH !== "true") {
-    return res.status(404).json({ error: "not_found" });
+  try {
+    if (process.env.DEV_BYPASS_AUTH !== "true") {
+      return res.status(404).json({ error: "not_found" });
+    }
+
+    const isProd = process.env.NODE_ENV === "production";
+    res.cookie("access_token", "dev-bypass-token", {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 8 * 60 * 60 * 1000, // 8 hours
+    });
+
+    return res.redirect(getRequiredEnv("DEV_LOGIN_DASHBOARD_URL"));
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
-
-  const isProd = process.env.NODE_ENV === "production";
-  res.cookie("access_token", "dev-bypass-token", {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 8 * 60 * 60 * 1000, // 8 hours
-  });
-
-  return res.redirect(process.env.ADMIN_DASHBOARD_URL || "http://localhost:3000");
 });
 
 /**

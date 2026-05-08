@@ -6,8 +6,8 @@ type AuthGateProps = {
   children: React.ReactNode;
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL || "http://localhost:3003";
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL;
 
 export default function AuthGate({ children }: AuthGateProps) {
   const [status, setStatus] = useState<"checking" | "ready">("checking");
@@ -16,6 +16,11 @@ export default function AuthGate({ children }: AuthGateProps) {
     let mounted = true;
 
     async function checkSession() {
+      if (!backendUrl || !loginAppUrl) {
+        console.error("Missing NEXT_PUBLIC_BACKEND_URL or NEXT_PUBLIC_LOGIN_APP_URL configuration");
+        return;
+      }
+
       try {
         const response = await fetch(`${backendUrl}/api/auth/me`, {
           credentials: "include",
