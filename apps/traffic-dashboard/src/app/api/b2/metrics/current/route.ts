@@ -1,0 +1,16 @@
+import { NextRequest, NextResponse } from "next/server";
+import { b2 } from "@/lib/b2";
+
+export async function GET(request: NextRequest) {
+  const camera_id = request.nextUrl.searchParams.get("camera_id");
+  if (!camera_id) {
+    return NextResponse.json({ error: "camera_id is required" }, { status: 400 });
+  }
+  try {
+    const data = await b2.metricsCurrent(camera_id);
+    return NextResponse.json(data);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "upstream error";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+}

@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { X, Clock, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { INCIDENTS } from "@/lib/dummy-data";
 import type { Incident } from "@/lib/types";
 
 function timeAgo(isoString: string): string {
@@ -15,17 +13,12 @@ function timeAgo(isoString: string): string {
 }
 
 interface IncidentPopupProps {
-  incident?: Incident;
+  incident: Incident | null;
+  onClose: () => void;
 }
 
-export function IncidentPopup({ incident: injected }: IncidentPopupProps) {
-  const [dismissed, setDismissed] = useState(false);
-
-  const incident =
-    injected ??
-    INCIDENTS.filter((i) => i.status === "active" && i.severity === "critical")[0];
-
-  if (!incident || dismissed) return null;
+export function IncidentPopup({ incident, onClose }: IncidentPopupProps) {
+  if (!incident) return null;
 
   return (
     <div
@@ -46,7 +39,7 @@ export function IncidentPopup({ incident: injected }: IncidentPopupProps) {
           <Badge variant={incident.type} />
         </div>
         <button
-          onClick={() => setDismissed(true)}
+          onClick={onClose}
           className="shrink-0 transition-opacity hover:opacity-60"
           style={{ color: "#757780" }}
           aria-label="Dismiss"

@@ -26,6 +26,14 @@ export default function AuthGate({ children }: AuthGateProps) {
           return;
         }
 
+        const data = await response.json();
+        const roles = data.user?.realm_access?.roles || [];
+        if (!roles.includes("admin")) {
+          // If the user does not have the admin role, redirect to login
+          window.location.href = `${loginAppUrl}`;
+          return;
+        }
+
         if (mounted) {
           setStatus("ready");
         }

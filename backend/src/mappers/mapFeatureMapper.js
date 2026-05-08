@@ -15,8 +15,12 @@ function fallbackCoordinate(cameraId) {
   };
 }
 
+function getCoordinateForCamera(cameraId) {
+  return CAMERA_COORDINATES[cameraId] || fallbackCoordinate(cameraId);
+}
+
 function mapMetricToLocation(metric) {
-  const coordinate = CAMERA_COORDINATES[metric.cameraId] || fallbackCoordinate(metric.cameraId);
+  const coordinate = getCoordinateForCamera(metric.cameraId);
   const severity = severityFromMetric(metric);
 
   return {
@@ -39,5 +43,6 @@ function mapMetricToLocation(metric) {
 }
 
 module.exports = {
+  getCoordinateForCamera,
   mapMetricToLocation,
 };

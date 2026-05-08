@@ -35,7 +35,11 @@ function decodeJwtPayload(token) {
  */
 // GET /api/auth/begin
 // Generates state + nonce, persists them as httpOnly cookies, then redirects to Keycloak.
+// In dev bypass mode, skip Keycloak entirely and use the dev-login shortcut.
 router.get("/begin", (req, res) => {
+  if (process.env.DEV_BYPASS_AUTH === "true") {
+    return res.redirect("/api/auth/dev-login");
+  }
   const state = crypto.randomBytes(32).toString("hex");
   const nonce = crypto.randomBytes(32).toString("hex");
 
@@ -211,7 +215,7 @@ router.get("/dev-login", (req, res) => {
     maxAge: 8 * 60 * 60 * 1000, // 8 hours
   });
 
-  return res.redirect(process.env.TRAFFIC_DASHBOARD_URL);
+  return res.redirect(process.env.ADMIN_DASHBOARD_URL || "http://localhost:3000");
 });
 
 /**
