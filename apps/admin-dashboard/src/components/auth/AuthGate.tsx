@@ -17,7 +17,7 @@ export default function AuthGate({ children }: AuthGateProps) {
 
     async function checkSession() {
       try {
-        const response = await fetch(`${backendUrl}/api/auth/me`, {
+        const response = await fetch(`${backendUrl}/auth/me`, {
           credentials: "include",
         });
 
@@ -38,7 +38,7 @@ export default function AuthGate({ children }: AuthGateProps) {
           setStatus("ready");
         }
       } catch {
-        window.location.href = `${loginAppUrl}/login/api/auth/login`;
+        window.location.href = `${loginAppUrl}`;
       }
     }
 
