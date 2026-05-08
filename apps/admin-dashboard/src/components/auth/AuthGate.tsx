@@ -25,7 +25,7 @@ export default function AuthGate({ children }: AuthGateProps) {
       }
 
       try {
-        const response = await fetch(`${backendUrl}/api/auth/me`, {
+        const response = await fetch(`${backendUrl}/auth/me`, {
           credentials: "include",
         });
 
