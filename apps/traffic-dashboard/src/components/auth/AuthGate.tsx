@@ -6,8 +6,10 @@ type AuthGateProps = {
   children: React.ReactNode;
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL;
+const backendUrl =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const loginAppUrl =
+  process.env.NEXT_PUBLIC_LOGIN_APP_URL || "http://localhost:3003/login";
 
 export default function AuthGate({ children }: AuthGateProps) {
   const [status, setStatus] = useState<"checking" | "ready">("checking");
