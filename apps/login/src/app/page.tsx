@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 
+const authLoginUrl = process.env.NEXT_PUBLIC_AUTH_LOGIN_URL;
+
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   function handleSignIn() {
+    if (!authLoginUrl) {
+      console.error("Missing NEXT_PUBLIC_AUTH_LOGIN_URL configuration");
+      return;
+    }
+
     setLoading(true);
-    window.location.href = "/login/api/auth/login";
+    window.location.href = authLoginUrl;
   }
 
   return (

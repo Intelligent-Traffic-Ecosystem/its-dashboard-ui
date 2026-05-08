@@ -107,7 +107,13 @@ export type Zone = {
   updated_at: string;
 };
 
-export const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const requiredBackendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+if (!requiredBackendBaseUrl) {
+  throw new Error("Missing NEXT_PUBLIC_BACKEND_URL configuration");
+}
+
+export const BACKEND_BASE_URL = requiredBackendBaseUrl;
 const ADMIN_TOKEN = process.env.NEXT_PUBLIC_ADMIN_TOKEN || "admin-token-default";
 
 export async function fetchBackendJson<T>(path: string, options?: RequestInit): Promise<T> {
