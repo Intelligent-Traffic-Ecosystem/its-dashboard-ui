@@ -6,9 +6,10 @@ type AuthGateProps = {
   children: React.ReactNode;
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL;
-const loginStartUrl = process.env.NEXT_PUBLIC_AUTH_LOGIN_URL;
+const backendUrl =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const loginAppUrl =
+  process.env.NEXT_PUBLIC_LOGIN_APP_URL || "http://localhost:3003";
 
 export default function AuthGate({ children }: AuthGateProps) {
   const [status, setStatus] = useState<"checking" | "ready">("checking");
@@ -62,7 +63,9 @@ export default function AuthGate({ children }: AuthGateProps) {
       <div className="min-h-screen flex items-center justify-center bg-surface-container-lowest text-on-surface">
         <div className="text-center space-y-3">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <p className="text-sm text-on-surface-variant">Checking your session...</p>
+          <p className="text-sm text-on-surface-variant">
+            Checking your session...
+          </p>
         </div>
       </div>
     );
