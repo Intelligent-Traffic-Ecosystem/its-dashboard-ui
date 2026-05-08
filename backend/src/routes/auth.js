@@ -238,12 +238,13 @@ router.get("/dev-login", (req, res) => {
  * @openapi
  * /api/auth/logout:
  *   post:
- *     summary: Clear auth cookies
+ *     summary: Logout user and redirect to Keycloak logout
+ *     description: Clears auth cookies and initiates Keycloak logout flow
  *     tags:
  *       - Auth
  *     responses:
  *       200:
- *         description: Logout completed
+ *         description: Logout initiated, client should redirect to logout URL
  *         content:
  *           application/json:
  *             schema:
@@ -252,12 +253,39 @@ router.get("/dev-login", (req, res) => {
  *                 ok:
  *                   type: boolean
  *                   example: true
+ *                 logoutUrl:
+ *                   type: string
+ *                   description: URL to redirect for Keycloak logout
  */
 // POST /api/auth/logout
 router.post("/logout", (req, res) => {
+  // Clear auth cookies
   res.clearCookie("access_token", { path: "/" });
   res.clearCookie("refresh_token", { path: "/" });
-  res.json({ ok: true });
+  res.clearCookie("oauth_state", { path: "/" });
+  res.clearCookie("oauth_nonce", { path: "/" });
+
+  // Build Keycloak logout URL with redirect back to login app
+  let logoutUrl;
+  if (process.env.DEV_BYPASS_AUTH === "true") {
+    // In dev bypass mode, just redirect to login app
+    logoutUrl = `${process.env.LOGIN_APP_URL || "http://localhost:3003"}`;
+  } else {
+    // In production, use Keycloak logout endpoint
+    const keycloakLogoutUrl = new URL(
+      `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/logout`
+    );
+    keycloakLogoutUrl.searchParams.set(
+      "redirect_uri",
+      `${process.env.LOGIN_APP_URL || "http://localhost:3003"}`
+    );
+    logoutUrl = keycloakLogoutUrl.toString();
+  }
+
+  res.json({ 
+    ok: true,
+    logoutUrl: logoutUrl
+  });
 });
 
 /**

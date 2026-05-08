@@ -30,6 +30,29 @@ export default function Sidebar() {
     return pathname.startsWith(href);
   };
 
+  const handleLogout = async () => {
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+      const response = await fetch(`${backendUrl}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Redirect to Keycloak logout URL or login page
+        if (data.logoutUrl) {
+          window.location.href = data.logoutUrl;
+        }
+      }
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Fallback: redirect to login page
+      const loginAppUrl = process.env.NEXT_PUBLIC_LOGIN_APP_URL || "http://localhost:3003";
+      window.location.href = `${loginAppUrl}`;
+    }
+  };
+
   return (
     <nav className="bg-[#10131a] fixed left-0 top-0 h-full w-64 border-r border-white/10 shadow-none flex flex-col py-6 z-50">
       {/* Brand/Header */}
@@ -96,13 +119,13 @@ export default function Sidebar() {
           <span className="material-symbols-outlined text-xl">help</span>
           <span>Support</span>
         </a>
-        <a
-          href="#"
-          className="flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-white/5 hover:text-slate-100 transition-colors font-['Space_Grotesk'] text-sm tracking-wide uppercase"
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2 text-slate-500 hover:bg-white/5 hover:text-slate-100 transition-colors font-['Space_Grotesk'] text-sm tracking-wide uppercase cursor-pointer"
         >
           <span className="material-symbols-outlined text-xl">logout</span>
           <span>Logout</span>
-        </a>
+        </button>
       </div>
     </nav>
   );
