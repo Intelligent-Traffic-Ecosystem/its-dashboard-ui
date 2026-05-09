@@ -11,7 +11,7 @@ class UpstreamError extends Error {
 
 class B2HttpClient {
   constructor({ baseUrl, timeoutMs, fetchImpl = fetch }) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.baseUrl = baseUrl.replace(/\/$/, "").replace("localhost", "127.0.0.1");
     this.timeoutMs = timeoutMs;
     this.fetch = fetchImpl;
   }

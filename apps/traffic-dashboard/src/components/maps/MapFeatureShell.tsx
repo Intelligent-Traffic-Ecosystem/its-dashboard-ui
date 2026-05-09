@@ -18,7 +18,10 @@ type FenceShape = {
 };
 
 const STORAGE_KEY = "b3-map-geofences";
-const DEFAULT_CENTER = { lat: 6.0358656, lng: 80.2291712 };
+const DEFAULT_CENTER = { lat: 6.9108, lng: 79.8699 }; // Borella, Colombo
+
+// Colombo District bounding box
+const MAP_BOUNDS = { minLat: 6.83, maxLat: 6.97, minLng: 79.83, maxLng: 79.94 };
 
 function loadFences(): FenceShape[] {
   if (typeof window === "undefined") return [];
@@ -43,8 +46,8 @@ function circleGeometry(points: Point[]) {
 function projectHeatmap(lat?: number, lng?: number) {
   const safeLat = lat ?? DEFAULT_CENTER.lat;
   const safeLng = lng ?? DEFAULT_CENTER.lng;
-  const x = ((safeLng - 80.18) / 0.1) * 84 + 8;
-  const y = (1 - (safeLat - 5.99) / 0.09) * 74 + 10;
+  const x = ((safeLng - MAP_BOUNDS.minLng) / (MAP_BOUNDS.maxLng - MAP_BOUNDS.minLng)) * 84 + 8;
+  const y = (1 - (safeLat - MAP_BOUNDS.minLat) / (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat)) * 74 + 10;
   return {
     x: Math.max(8, Math.min(92, x)),
     y: Math.max(10, Math.min(84, y)),

@@ -25,59 +25,7 @@ interface GoogleMapProps {
 }
 
 const SCRIPT_ID = "google-maps-sdk";
-const DEFAULT_CENTER = { lat: 6.0358656, lng: 80.2291712 };
-const USE_DEMO_PINS = process.env.NEXT_PUBLIC_DEMO_MAP_PINS !== "false";
-
-const DEMO_PINS: MapPin[] = [
-  {
-    id: "DEMO-cam_01",
-    type: "incident",
-    severity: "critical",
-    lat: 6.0248,
-    lng: 80.2172,
-    title: "Traffic camera cam_01",
-    description: "HIGH congestion, 18.5 km/h average speed.",
-    status: "demo",
-    timestamp: new Date().toISOString(),
-    details: { vehicleCount: 34, avgSpeedKmh: 18.5, congestionScore: 91, queueLength: 12 },
-  },
-  {
-    id: "DEMO-cam_02",
-    type: "incident",
-    severity: "warning",
-    lat: 6.0545,
-    lng: 80.2209,
-    title: "Traffic camera cam_02",
-    description: "MEDIUM congestion, 31.2 km/h average speed.",
-    status: "demo",
-    timestamp: new Date().toISOString(),
-    details: { vehicleCount: 21, avgSpeedKmh: 31.2, congestionScore: 66, queueLength: 5 },
-  },
-  {
-    id: "DEMO-cam_03",
-    type: "sensor",
-    severity: "info",
-    lat: 6.0182,
-    lng: 80.2477,
-    title: "Traffic camera cam_03",
-    description: "LOW congestion, 44.8 km/h average speed.",
-    status: "demo",
-    timestamp: new Date().toISOString(),
-    details: { vehicleCount: 13, avgSpeedKmh: 44.8, congestionScore: 24, queueLength: 1 },
-  },
-  {
-    id: "DEMO-cam_04",
-    type: "incident",
-    severity: "warning",
-    lat: 6.0358,
-    lng: 80.2291,
-    title: "Traffic camera cam_04",
-    description: "MEDIUM congestion, 29.6 km/h average speed.",
-    status: "demo",
-    timestamp: new Date().toISOString(),
-    details: { vehicleCount: 25, avgSpeedKmh: 29.6, congestionScore: 72, queueLength: 7 },
-  },
-];
+const DEFAULT_CENTER = { lat: 6.9108, lng: 79.8699 }; // Borella, Colombo
 
 // Pin colour per type/severity
 const PIN_STYLE: Record<string, { bg: string; border: string; icon: string }> = {
@@ -165,53 +113,45 @@ function isUsableGoogleKey(apiKey: string) {
   return apiKey.trim().length > 0 && !apiKey.includes("YOUR_") && apiKey !== "DEMO_MAP_ID";
 }
 
-function getPinsForDisplay(pins: MapPin[]) {
-  return pins.length > 0 || !USE_DEMO_PINS ? pins : DEMO_PINS;
-}
-
 async function fetchMapPins(): Promise<MapPin[]> {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-  console.log("[Map] loadPins — backendUrl:", backendUrl);
   if (!backendUrl) {
-    console.warn("[Map] NEXT_PUBLIC_BACKEND_URL not set — using demo pins.");
-    return getPinsForDisplay([]);
+    console.warn("[Map] NEXT_PUBLIC_BACKEND_URL not set — cannot fetch pins.");
+    return [];
   }
 
   try {
     const res = await fetch(`${backendUrl}/api/locations`, { credentials: "include" });
-    console.log("[Map] /api/locations response:", res.status);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const pins = await res.json();
-    console.log("[Map] pins received:", pins.length);
-    return getPinsForDisplay(pins);
+    return pins;
   } catch (err: any) {
     console.warn("[Map] pins unavailable:", err.message);
-    return getPinsForDisplay([]);
+    return [];
   }
 }
 
 function LocalFallbackMap({ pins }: { pins: MapPin[] }) {
-  const displayPins = getPinsForDisplay(pins);
-  const lats = displayPins.map((pin) => pin.lat);
-  const lngs = displayPins.map((pin) => pin.lng);
-  const minLat = Math.min(...lats, DEFAULT_CENTER.lat - 0.03);
-  const maxLat = Math.max(...lats, DEFAULT_CENTER.lat + 0.03);
-  const minLng = Math.min(...lngs, DEFAULT_CENTER.lng - 0.03);
-  const maxLng = Math.max(...lngs, DEFAULT_CENTER.lng + 0.03);
+  const displayPins = pins;
+  // Colombo District bounding box
+  const minLat = 6.83; const maxLat = 6.97;
+  const minLng = 79.83; const maxLng = 79.94;
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#121822]">
       <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(76,215,246,.10)_1px,transparent_1px),linear-gradient(90deg,rgba(76,215,246,.10)_1px,transparent_1px)] [background-size:42px_42px]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(76,215,246,.18),transparent_42%),linear-gradient(135deg,rgba(173,198,255,.12),transparent_45%)]" />
+      {/* Stylised Colombo road sketch */}
       <div className="absolute left-[8%] right-[10%] top-[38%] h-3 rotate-[-8deg] rounded-full bg-[#2d3542]" />
       <div className="absolute left-[18%] right-[6%] top-[58%] h-3 rotate-[12deg] rounded-full bg-[#2d3542]" />
       <div className="absolute bottom-4 left-4 rounded bg-surface-container/90 px-3 py-2 text-[11px] text-on-surface-variant border border-outline-variant">
-        Local map preview. Add a valid Google Maps API key for live tiles.
+        Colombo District preview — add a valid Google Maps API key for live tiles.
       </div>
       {displayPins.map((pin) => {
         const style = getPinStyle(pin);
-        const left = ((pin.lng - minLng) / Math.max(maxLng - minLng, 0.0001)) * 84 + 8;
-        const top = (1 - (pin.lat - minLat) / Math.max(maxLat - minLat, 0.0001)) * 74 + 10;
+        // Project lat/lng to % inside the bounding box (lat goes top→bottom)
+        const left = ((pin.lng - minLng) / (maxLng - minLng)) * 84 + 8;
+        const top  = (1 - (pin.lat - minLat) / (maxLat - minLat)) * 74 + 10;
         return (
           <button
             key={pin.id}
@@ -234,11 +174,15 @@ export default function GoogleMap({
   zoom = 13,
   allowCustomPins = false,
 }: GoogleMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const initialised = useRef(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pins, setPins] = useState<MapPin[]>([]);
+  const containerRef    = useRef<HTMLDivElement>(null);
+  const initialised     = useRef(false);
+  const markersRef      = useRef<any[]>([]);
+  const [error, setError]           = useState<string | null>(null);
+  const [pins,  setPins]            = useState<MapPin[]>([]);
   const [useFallback, setUseFallback] = useState(false);
+  const mapRef          = useRef<any>(null);
+  const infoWindowRef   = useRef<any>(null);
+  const AdvancedRef     = useRef<any>(null);
 
   useEffect(() => {
     console.log("[Map] effect fired — initialised:", initialised.current, "container:", !!containerRef.current);
@@ -283,12 +227,9 @@ export default function GoogleMap({
 
       (window as any).google.maps.event.trigger(map, "resize");
 
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          ({ coords }) => map.setCenter({ lat: coords.latitude, lng: coords.longitude }),
-          () => {}
-        );
-      }
+      mapRef.current = map;
+      infoWindowRef.current = new InfoWindow();
+      AdvancedRef.current = AdvancedMarkerElement;
 
       if (allowCustomPins) {
         const infoWindow = new InfoWindow();
@@ -306,11 +247,14 @@ export default function GoogleMap({
 
       const pins = await fetchMapPins();
       setPins(pins);
-      placePins(map, InfoWindow, AdvancedMarkerElement, pins);
+      placePins(map, AdvancedMarkerElement, pins);
     }
 
-    function placePins(map: any, InfoWindow: any, AdvancedMarkerElement: any, pins: MapPin[]) {
-      const infoWindow = new InfoWindow();
+    function placePins(map: any, AdvancedMarkerElement: any, pins: MapPin[]) {
+      // Clear old pins
+      markersRef.current.forEach((m: any) => m.map = null);
+      markersRef.current = [];
+      const infoWindow = infoWindowRef.current;
 
       pins.forEach((pin) => {
         try {
@@ -324,7 +268,7 @@ export default function GoogleMap({
             infoWindow.setContent(buildInfoContent(pin));
             infoWindow.open(map, marker);
           });
-          console.log("[Map] pin placed:", pin.id);
+          markersRef.current.push(marker);
         } catch (err: any) {
           console.warn(`[Map] skipping pin ${pin.id}:`, err.message);
         }
@@ -395,6 +339,19 @@ export default function GoogleMap({
         setUseFallback(true);
         setPins(await fetchMapPins());
       });
+      
+    // Polling for live pins
+    const interval = setInterval(async () => {
+      try {
+        const newPins = await fetchMapPins();
+        setPins(newPins);
+        if (!useFallback && mapRef.current && AdvancedRef.current) {
+          placePins(mapRef.current, AdvancedRef.current, newPins);
+        }
+      } catch (e) {}
+    }, 10000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   return (

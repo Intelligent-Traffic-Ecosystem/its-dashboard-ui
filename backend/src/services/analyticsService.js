@@ -124,11 +124,11 @@ class AnalyticsService {
   async getMetrics(from, to) {
     try {
       // Fetch all metrics within the range (would come from B2 in production)
-      // For now, use mock data across cameras
-      const mockCameras = ["CAM-001", "CAM-002", "CAM-003", "CAM-004", "CAM-005"];
+      const cameras = await this.trafficService.listCameras();
       let allMetrics = [];
 
-      for (const cameraId of mockCameras) {
+      for (const camera of cameras) {
+        const cameraId = camera.cameraId || camera.id;
         try {
           const metrics = await this.trafficService.getMetricHistory(cameraId, from, to);
           allMetrics = allMetrics.concat(metrics);
