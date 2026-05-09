@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getSocket, type TrafficMetric } from "@/lib/socket";
 import { useCurrentCongestion } from "@/lib/hooks/useB3Backend";
+import { b3Backend } from "@/lib/b3-backend";
 
 interface DataPoint { t: number; v: number }
 
@@ -69,6 +70,46 @@ export default function ChartPanel() {
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date().getTime()), 5_000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch 24H history on mount
+  useEffect(() => {
+    let mounted = true;
+    async function loadHistory() {
+      try {
+        const cameras: any[] = await b3Backend.traffic.listCameras();
+        const from = new Date(Date.now() - RANGE_MS["24H"]).toISOString();
+        const to = new Date().toISOString();
+        
+        const histories = await Promise.all(
+          cameras.map(c => b3Backend.traffic.getMetricHistory(c.id, from, to))
+        );
+        
+        const timeMap = new Map<number, number>();
+        histories.forEach((history: any) => {
+          history.forEach((m: any) => {
+            const t = new Date(m.windowStart || m.timestamp || new Date()).getTime();
+            // Round to nearest 5 seconds to align timestamps from different cameras
+            const roundedT = Math.round(t / 5000) * 5000;
+            timeMap.set(roundedT, (timeMap.get(roundedT) || 0) + m.vehicleCount);
+          });
+        });
+        
+        if (!mounted) return;
+        
+        const aggregated = Array.from(timeMap.entries())
+          .map(([t, v]) => ({ t, v }))
+          .sort((a, b) => a.t - b.t);
+          
+        if (aggregated.length > 0) {
+          setAllPoints(aggregated);
+        }
+      } catch (err) {
+        console.warn("[ChartPanel] Failed to load history:", err);
+      }
+    }
+    loadHistory();
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {

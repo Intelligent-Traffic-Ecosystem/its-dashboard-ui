@@ -1,2 +1,5 @@
 docs/ARCHITECTURE_DESIGN_SPECIFICATION.tex
 docs/ANNEX_CONTRIBUTION_TRAFFIC_OFFICER_DASHBOARD_BFF.tex
+
+# Dev-only mock producer tooling — not for production
+mock-producer/
