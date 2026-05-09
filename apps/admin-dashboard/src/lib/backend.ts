@@ -236,3 +236,19 @@ export const deleteZone = (zoneId: number) =>
     credentials: "include",
     headers: { "X-Admin-Token": ADMIN_TOKEN },
   });
+
+// System health
+export type SystemHealth = {
+  status: "ok" | "degraded";
+  service: string;
+  upstream: {
+    b2: {
+      status: string;
+      kafka?: string;
+      postgres?: string;
+    };
+  };
+};
+
+export const getSystemHealth = () =>
+  fetchBackendJson<SystemHealth>("/health");

@@ -187,6 +187,10 @@ router.get("/callback", async (req, res) => {
   if (refresh_token) {
     res.cookie("refresh_token", refresh_token, { ...cookieOpts, maxAge: 24 * 60 * 60 * 1000 });
   }
+  // Persist id_token as an httpOnly cookie so we can provide an id_token_hint to Keycloak on logout
+  if (id_token) {
+    res.cookie("id_token", id_token, { ...cookieOpts, maxAge: 15 * 60 * 1000 });
+  }
 
   // Redirect browser to the correct dashboard based on role
   const destination =
@@ -238,12 +242,13 @@ router.get("/dev-login", (req, res) => {
  * @openapi
  * /api/auth/logout:
  *   post:
- *     summary: Clear auth cookies
+ *     summary: Logout user and redirect to Keycloak logout
+ *     description: Clears auth cookies and initiates Keycloak logout flow
  *     tags:
  *       - Auth
  *     responses:
  *       200:
- *         description: Logout completed
+ *         description: Logout initiated, client should redirect to logout URL
  *         content:
  *           application/json:
  *             schema:
@@ -252,12 +257,45 @@ router.get("/dev-login", (req, res) => {
  *                 ok:
  *                   type: boolean
  *                   example: true
+ *                 logoutUrl:
+ *                   type: string
+ *                   description: URL to redirect for Keycloak logout
  */
 // POST /api/auth/logout
 router.post("/logout", (req, res) => {
+  // Clear auth cookies
   res.clearCookie("access_token", { path: "/" });
   res.clearCookie("refresh_token", { path: "/" });
-  res.json({ ok: true });
+  res.clearCookie("oauth_state", { path: "/" });
+  res.clearCookie("oauth_nonce", { path: "/" });
+  res.clearCookie("id_token", { path: "/" });
+
+  // Build Keycloak logout URL with redirect back to login app
+  let logoutUrl;
+  if (process.env.DEV_BYPASS_AUTH === "true") {
+    // In dev bypass mode, just redirect to login app
+    logoutUrl = `${process.env.LOGIN_APP_URL || "http://localhost:3003"}`;
+  } else {
+    // In production, use Keycloak logout endpoint
+    const keycloakLogoutUrl = new URL(
+      `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}/protocol/openid-connect/logout`
+    );
+    // Include an id_token_hint when available to help Keycloak identify the session to end
+    const idTokenHint = req.cookies?.id_token;
+    if (idTokenHint) {
+      keycloakLogoutUrl.searchParams.set("id_token_hint", idTokenHint);
+    }
+    keycloakLogoutUrl.searchParams.set(
+      "post_logout_redirect_uri",
+      `${process.env.LOGIN_APP_URL || "http://localhost:3003"}`
+    );
+    logoutUrl = keycloakLogoutUrl.toString();
+  }
+
+  res.json({ 
+    ok: true,
+    logoutUrl: logoutUrl
+  });
 });
 
 /**
