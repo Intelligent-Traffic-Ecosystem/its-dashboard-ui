@@ -81,7 +81,7 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex-1 overflow-y-auto px-4 space-y-1">
+      <div className="flex-1 overflow-y-auto px-4 space-y-1 custom-scrollbar">
         {navItems.map((item) => {
           const active = isActive(item.href);
           return (
