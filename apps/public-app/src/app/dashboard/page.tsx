@@ -2,11 +2,21 @@ import { PageShell } from "@/components/layout/PageShell";
 import { StatsRow } from "@/components/dashboard/StatsRow";
 import { RoadSegmentsTable } from "@/components/dashboard/RoadSegmentsTable";
 import { TrafficVolumeChart } from "@/components/dashboard/TrafficVolumeChart";
-import { RecentIncidents } from "@/components/dashboard/RecentIncidents";
 import { DashboardStaleBanner } from "@/components/dashboard/DashboardStaleBanner";
 import { LiveIndicator } from "@/components/ui/LiveIndicator";
+import {
+  getPublicTrafficMetrics,
+  deriveStats,
+  deriveSegments,
+  deriveChartSamples,
+} from "@/lib/backend-api";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const metrics = await getPublicTrafficMetrics();
+  const stats = deriveStats(metrics);
+  const segments = deriveSegments(metrics);
+  const chartSamples = deriveChartSamples(metrics);
+
   return (
     <PageShell
       title="Traffic Overview"
@@ -18,20 +28,13 @@ export default function DashboardPage() {
         <DashboardStaleBanner />
 
         {/* KPI row */}
-        <StatsRow />
+        <StatsRow stats={stats} />
 
-        {/* Chart + incidents split */}
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-5">
-          <div className="xl:col-span-3">
-            <TrafficVolumeChart />
-          </div>
-          <div className="xl:col-span-2">
-            <RecentIncidents />
-          </div>
-        </div>
+        {/* Full-width live camera chart */}
+        <TrafficVolumeChart samples={chartSamples} />
 
-        {/* Road segments table */}
-        <RoadSegmentsTable />
+        {/* Camera segment status table */}
+        <RoadSegmentsTable segments={segments} />
       </div>
     </PageShell>
   );

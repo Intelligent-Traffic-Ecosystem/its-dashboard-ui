@@ -8,6 +8,7 @@ export type IncidentType =
   | "event";
 export type CongestionLevel = "free" | "moderate" | "heavy" | "standstill";
 
+/** Used as traffic camera location pin on the map */
 export interface Incident {
   id: string;
   type: IncidentType;
@@ -28,14 +29,7 @@ export interface RoadSegment {
   congestionPct: number;
   level: CongestionLevel;
   avgSpeedKmh: number;
-  incidents: number;
   lastUpdated: string;
-}
-
-export interface TrafficSample {
-  hour: string;
-  volume: number;
-  avgSpeed: number;
 }
 
 export interface StatCardData {
