@@ -208,6 +208,22 @@ export function analyticsReportUrl(from: string, to: string) {
   return `${BACKEND_BASE_URL}/api/analytics/report/pdf?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 }
 
+// System health
+export type SystemHealth = {
+  status: "ok" | "degraded";
+  service: string;
+  upstream: {
+    b2: {
+      status: string;
+      kafka?: string;
+      postgres?: string;
+    };
+  };
+};
+
+export const getSystemHealth = () =>
+  fetchBackendJson<SystemHealth>("/health");
+
 // Admin — thresholds
 export const getThresholds = () =>
   fetchAdminJson<Thresholds>("/api/admin/thresholds");
@@ -236,19 +252,3 @@ export const deleteZone = (zoneId: number) =>
     credentials: "include",
     headers: { "X-Admin-Token": ADMIN_TOKEN },
   });
-
-// System health
-export type SystemHealth = {
-  status: "ok" | "degraded";
-  service: string;
-  upstream: {
-    b2: {
-      status: string;
-      kafka?: string;
-      postgres?: string;
-    };
-  };
-};
-
-export const getSystemHealth = () =>
-  fetchBackendJson<SystemHealth>("/health");

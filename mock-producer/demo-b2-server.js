@@ -274,6 +274,39 @@ const server = http.createServer((req, res) => {
     return res.end(JSON.stringify(history));
   }
 
+  // GET /api/public/traffic/current
+  // Returns camelCase metrics wrapped in { items } for the B3 public-app frontend.
+  if (pathname === "/api/public/traffic/current") {
+    const raw = buildAllMetrics();
+    const items = raw.map((m) => ({
+      cameraId: m.camera_id,
+      vehicleCount: m.vehicle_count,
+      averageSpeedKmh: m.avg_speed_kmh,
+      congestionScore: parseFloat((m.congestion_score * 100).toFixed(1)),
+      congestionLevel: m.congestion_level,
+      windowEnd: m.window_end,
+    }));
+    return res.end(JSON.stringify({ items }));
+  }
+
+  // GET /api/public/map/heatmap
+  // Returns heatmap points with real Colombo lat/lng wrapped in { items }.
+  if (pathname === "/api/public/map/heatmap") {
+    const raw = buildAllMetrics();
+    const items = raw.map((m) => {
+      const cam = CAMERAS.find((c) => c.camera_id === m.camera_id) || CAMERAS[0];
+      return {
+        camera_id: m.camera_id,
+        latitude: cam.lat,
+        longitude: cam.lng,
+        weight: parseFloat(m.congestion_score.toFixed(4)),
+        vehicleCount: m.vehicle_count,
+        congestionScore: parseFloat((m.congestion_score * 100).toFixed(1)),
+      };
+    });
+    return res.end(JSON.stringify({ items }));
+  }
+
   res.writeHead(404);
   res.end(JSON.stringify({ detail: "Not found" }));
 });
@@ -337,6 +370,8 @@ server.listen(PORT, "0.0.0.0", () => {
   GET  /congestion/current
   GET  /metrics/current?camera_id=cam_01
   GET  /metrics/history?camera_id=cam_01&from=<ISO>&to=<ISO>
+  GET  /api/public/traffic/current   (B3 frontend)
+  GET  /api/public/map/heatmap       (B3 frontend)
 
   WebSocket
   ─────────────────────────────────────────────────────

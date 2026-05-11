@@ -193,6 +193,8 @@ server.listen(PORT, () => {
   console.log(`     GET /congestion/current`);
   console.log(`     GET /metrics/current?camera_id=cam_01`);
   console.log(`     GET /metrics/history?camera_id=cam_01&from=<ISO>&to=<ISO>`);
+  console.log(`     GET /api/public/traffic/current  (B3 frontend)`);
+  console.log(`     GET /api/public/map/heatmap      (B3 frontend)`);
   console.log(`   WebSocket:`);
   console.log(`     ws://localhost:${PORT}/ws/metrics`);
   console.log(`     ws://localhost:${PORT}/ws/metrics?camera_id=cam_01`);
