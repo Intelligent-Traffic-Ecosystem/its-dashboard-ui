@@ -81,23 +81,20 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 max-w-4xl">
-      {/* Page header */}
       <div>
         <h2 className="font-display-lg text-display-lg text-on-surface mb-2">Settings</h2>
         <p className="font-body-md text-body-md text-on-surface-variant">
-          System configuration overview for ITMS District 4. Most values are set via environment
-          variables on the backend and are read-only here.
+          System configuration overview. Most values are set via environment variables and are read-only here.
         </p>
       </div>
 
-      {/* ── System Health ── */}
+      {/* System Health */}
       <div className="bg-surface-container rounded-xl border border-white/10 p-6">
         <SectionHeader
           icon="monitor_heart"
           title="System Health"
           description="Live status of the backend and upstream B2 Data API dependencies."
         />
-
         {healthLoading ? (
           <div className="flex items-center gap-3 text-on-surface-variant font-body-sm text-body-sm py-4">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -106,12 +103,11 @@ export default function SettingsPage() {
         ) : healthError ? (
           <div className="flex items-center gap-2 text-error font-body-sm text-body-sm py-4">
             <span className="material-symbols-outlined text-[18px]">error</span>
-            Backend unreachable — make sure the backend is running on {BACKEND_BASE_URL}
+            Backend unreachable — {BACKEND_BASE_URL}
           </div>
         ) : health ? (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Backend */}
               <div className="bg-surface-container-highest rounded-lg border border-white/5 p-4 flex items-center justify-between">
                 <div>
                   <p className="font-label-caps text-label-caps text-on-surface-variant mb-1">BACKEND (B3)</p>
@@ -119,8 +115,6 @@ export default function SettingsPage() {
                 </div>
                 <StatusBadge status={health.status} />
               </div>
-
-              {/* B2 upstream */}
               <div className="bg-surface-container-highest rounded-lg border border-white/5 p-4 flex items-center justify-between">
                 <div>
                   <p className="font-label-caps text-label-caps text-on-surface-variant mb-1">B2 DATA API</p>
@@ -128,8 +122,6 @@ export default function SettingsPage() {
                 </div>
                 <StatusBadge status={health.upstream.b2.status} />
               </div>
-
-              {/* Kafka */}
               {health.upstream.b2.kafka && (
                 <div className="bg-surface-container-highest rounded-lg border border-white/5 p-4 flex items-center justify-between">
                   <div>
@@ -139,8 +131,6 @@ export default function SettingsPage() {
                   <StatusBadge status={health.upstream.b2.kafka} />
                 </div>
               )}
-
-              {/* Postgres */}
               {health.upstream.b2.postgres && (
                 <div className="bg-surface-container-highest rounded-lg border border-white/5 p-4 flex items-center justify-between">
                   <div>
@@ -151,7 +141,6 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
-
             <div className="flex items-center justify-between pt-2 border-t border-white/10">
               <p className="font-body-sm text-body-sm text-on-surface-variant">
                 {lastRefreshed && `Last checked at ${lastRefreshed.toLocaleTimeString()}`}
@@ -168,31 +157,20 @@ export default function SettingsPage() {
         ) : null}
       </div>
 
-      {/* ── Connection Configuration ── */}
+      {/* Connection Configuration */}
       <div className="bg-surface-container rounded-xl border border-white/10 p-6">
         <SectionHeader
           icon="cable"
           title="Connection Configuration"
-          description="Endpoint URLs configured via environment variables. Edit the .env.local files to change these."
+          description="Endpoint URLs configured via environment variables."
         />
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ReadOnlyField label="BACKEND API URL" value={BACKEND_BASE_URL} />
           <ReadOnlyField label="LOGIN APP URL" value={LOGIN_APP_URL} />
-          <ReadOnlyField label="ADMIN DASHBOARD" value="http://localhost:3001" />
-          <ReadOnlyField label="TRAFFIC DASHBOARD" value="http://localhost:3000" />
         </div>
-
-        <p className="mt-4 font-body-sm text-body-sm text-on-surface-variant">
-          B2 Data API and Keycloak connection details are configured server-side in{" "}
-          <code className="font-mono-data text-mono-data text-xs bg-surface-container-highest px-1.5 py-0.5 rounded">
-            services/b3-dashboard/backend/.env
-          </code>
-          .
-        </p>
       </div>
 
-      {/* ── Alert Thresholds ── */}
+      {/* Alert Thresholds */}
       <div className="bg-surface-container rounded-xl border border-white/10 p-6">
         <div className="flex items-start justify-between mb-5">
           <SectionHeader
@@ -208,7 +186,6 @@ export default function SettingsPage() {
             Configure
           </Link>
         </div>
-
         {thresholdsLoading ? (
           <div className="flex items-center gap-3 text-on-surface-variant font-body-sm text-body-sm">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -248,21 +225,18 @@ export default function SettingsPage() {
         )}
       </div>
 
-      {/* ── System Information ── */}
+      {/* System Information */}
       <div className="bg-surface-container rounded-xl border border-white/10 p-6">
         <SectionHeader
           icon="info"
           title="System Information"
           description="Static identifiers and authentication provider details for this deployment."
         />
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ReadOnlyField label="SYSTEM NAME" value="ITMS Admin" />
-          <ReadOnlyField label="DISTRICT" value="District 4 Metro Authority" />
-          <ReadOnlyField label="AUTH PROVIDER" value="Keycloak (configured on backend)" />
+          <ReadOnlyField label="AUTH PROVIDER" value="Keycloak" />
           <ReadOnlyField label="KEYCLOAK REALM" value="its-realm" />
           <ReadOnlyField label="BACKEND SERVICE" value="b3-dashboard-backend" />
-          <ReadOnlyField label="B2 SERVICE" value="b2-data-api" />
         </div>
       </div>
     </div>
