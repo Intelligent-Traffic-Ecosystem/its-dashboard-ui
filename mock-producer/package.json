@@ -1,0 +1,14 @@
+{
+  "name": "b3-mock-producer",
+  "version": "1.0.0",
+  "description": "Dev-only tools: Mock B2 server and B3 endpoint checker. Not shipped to production.",
+  "private": true,
+  "scripts": {
+    "demo-b2": "node demo-b2-server.js",
+    "mock-b2": "node mock-b2-server.js",
+    "test-endpoints": "node test-b3-endpoints.js"
+  },
+  "dependencies": {
+    "ws": "^8.17.0"
+  }
+}
