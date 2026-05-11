@@ -383,7 +383,7 @@ export const b3Backend = {
         /**
          * Get all map pin locations
          */
-        listAll: () => get("/api/locations"),
+        listAll: () => get<any[]>("/api/locations"),
     },
 
     // Health API
