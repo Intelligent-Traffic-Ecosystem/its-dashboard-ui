@@ -179,10 +179,13 @@ function getDummyMapData(): PublicMapData {
 export async function getPublicMapData(): Promise<PublicMapData> {
   if (USE_DUMMY_MAP_DATA) return getDummyMapData();
 
-  const [heatmap, incidentRows] = await Promise.all([
-    getJson<HeatmapPoint[]>("/api/map/heatmap"),
-    getJson<MapIncident[]>("/api/map/incidents"),
+  const [heatmapRes, incidentsRes] = await Promise.all([
+    getJson<{ items: HeatmapPoint[] }>("/api/public/map/heatmap"),
+    getJson<{ items: MapIncident[] }>("/api/public/map/incidents"),
   ]);
+
+  const heatmap = heatmapRes.items ?? [];
+  const incidentRows = incidentsRes.items ?? [];
 
   return {
     heatmap,
