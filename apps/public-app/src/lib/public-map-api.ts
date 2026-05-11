@@ -1,7 +1,7 @@
 import { INCIDENTS } from "./dummy-data";
 import type { Incident, IncidentStatus, IncidentType, Severity } from "./types";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
 const USE_DUMMY_MAP_DATA = process.env.NEXT_PUBLIC_USE_DUMMY_MAP_DATA === "true";
 const COLOMBO_CENTER = { lat: 6.9271, lng: 79.8612 };
 const DUMMY_SOURCE_CENTER = { lat: 51.51, lng: -0.1 };
