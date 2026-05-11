@@ -60,6 +60,14 @@ export interface TrafficMetric {
     stale: boolean;
 }
 
+export interface TrafficCamera {
+    id: string;
+    cameraId?: string;
+    camera_id?: string;
+    name?: string;
+    label?: string;
+}
+
 export interface DashboardSummary {
     total_incidents_24h: number;
     total_vehicles?: number;
@@ -101,6 +109,15 @@ export interface HeatmapPoint {
     vehicleCount?: number;
     vehicle_count?: number;
     congestionScore?: number;
+}
+
+export interface LocationPoint {
+    cameraId?: string;
+    camera_id?: string;
+    lat?: number;
+    lng?: number;
+    latitude?: number;
+    longitude?: number;
 }
 
 export interface MapIncident {
@@ -251,16 +268,16 @@ export const b3Backend = {
                 ? cameraIdOrFilters
                 : { cameraId: cameraIdOrFilters, limit, offset };
             return (
-            get<AlertHistory>(
-                `/api/alerts/history?${new URLSearchParams({
-                    ...(filters.cameraId && { cameraId: filters.cameraId }),
-                    ...(filters.severity && { severity: filters.severity }),
-                    ...(filters.from && { from: filters.from }),
-                    ...(filters.to && { to: filters.to }),
-                    limit: String(filters.limit ?? limit),
-                    offset: String(filters.offset ?? offset),
-                }).toString()}`
-            )
+                get<AlertHistory>(
+                    `/api/alerts/history?${new URLSearchParams({
+                        ...(filters.cameraId && { cameraId: filters.cameraId }),
+                        ...(filters.severity && { severity: filters.severity }),
+                        ...(filters.from && { from: filters.from }),
+                        ...(filters.to && { to: filters.to }),
+                        limit: String(filters.limit ?? limit),
+                        offset: String(filters.offset ?? offset),
+                    }).toString()}`
+                )
             );
         },
 
@@ -342,7 +359,7 @@ export const b3Backend = {
         /**
          * List all traffic cameras
          */
-        listCameras: () => get("/api/traffic/cameras"),
+        listCameras: () => get<TrafficCamera[]>("/api/traffic/cameras"),
 
         /**
          * Get current metric for a camera
@@ -383,7 +400,7 @@ export const b3Backend = {
         /**
          * Get all map pin locations
          */
-        listAll: () => get("/api/locations"),
+        listAll: () => get<LocationPoint[]>("/api/locations"),
     },
 
     // Health API
