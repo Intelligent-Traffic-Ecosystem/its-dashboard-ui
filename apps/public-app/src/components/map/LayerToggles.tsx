@@ -1,6 +1,6 @@
 "use client";
 
-import { Flame, MapPin, Navigation } from "lucide-react";
+import { Flame, Navigation } from "lucide-react";
 
 interface Layer {
   id: string;
@@ -11,8 +11,7 @@ interface Layer {
 
 const LAYERS: Layer[] = [
   { id: "heatmap", label: "Congestion Heatmap", icon: <Flame size={14} />, defaultOn: true },
-  { id: "incidents", label: "Incident Markers", icon: <MapPin size={14} />, defaultOn: true },
-  { id: "flow", label: "Traffic Flow", icon: <Navigation size={14} />, defaultOn: true },
+  { id: "flow", label: "Camera Locations", icon: <Navigation size={14} />, defaultOn: true },
 ];
 
 export const DEFAULT_ACTIVE_LAYERS = new Set(
@@ -22,6 +21,29 @@ export const DEFAULT_ACTIVE_LAYERS = new Set(
 export interface LayerTogglesProps {
   activeLayers: Set<string>;
   onToggle: (id: string) => void;
+}
+
+function ToggleSwitch({ on }: { on: boolean }) {
+  return (
+    <div
+      className="relative ml-auto shrink-0 rounded-full transition-colors duration-200"
+      style={{
+        width: 36,
+        height: 20,
+        background: on ? "rgba(76,215,246,0.35)" : "rgba(255,255,255,0.10)",
+        border: on ? "1px solid rgba(76,215,246,0.4)" : "1px solid rgba(255,255,255,0.12)",
+      }}
+    >
+      <div
+        className="absolute top-[2px] size-[14px] rounded-full transition-all duration-200 shadow-sm"
+        style={{
+          background: on ? "#4CD7F6" : "#757780",
+          left: on ? 18 : 2,
+          boxShadow: on ? "0 0 6px #4CD7F688" : "none",
+        }}
+      />
+    </div>
+  );
 }
 
 export function LayerToggles({ activeLayers: active, onToggle }: LayerTogglesProps) {
@@ -43,25 +65,19 @@ export function LayerToggles({ activeLayers: active, onToggle }: LayerTogglesPro
             <button
               key={layer.id}
               onClick={() => onToggle(layer.id)}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-left"
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left"
               style={{
                 background: on ? "rgba(59,130,246,0.08)" : "transparent",
                 color: on ? "#4CD7F6" : "#757780",
-                border: on ? "1px solid rgba(59,130,246,0.20)" : "1px solid transparent",
+                border: on ? "1px solid rgba(59,130,246,0.18)" : "1px solid transparent",
                 fontFamily: "var(--font-inter)",
               }}
             >
-              {layer.icon}
-              {layer.label}
-              <span
-                className="ml-auto text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide"
-                style={{
-                  background: on ? "rgba(76,215,246,0.15)" : "rgba(255,255,255,0.06)",
-                  color: on ? "#4CD7F6" : "#757780",
-                }}
-              >
-                {on ? "ON" : "OFF"}
+              <span className="shrink-0" style={{ color: on ? "#4CD7F6" : "#757780" }}>
+                {layer.icon}
               </span>
+              <span className="min-w-0 flex-1 text-sm leading-tight">{layer.label}</span>
+              <ToggleSwitch on={on} />
             </button>
           );
         })}

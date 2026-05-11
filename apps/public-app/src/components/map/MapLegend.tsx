@@ -5,11 +5,11 @@ const CONGESTION_ITEMS = [
   { label: "Standstill", color: "#EF4444", range: "> 80%" },
 ];
 
-const INCIDENT_MARKERS = [
-  { dot: "#EF4444", label: "Critical / Active" },
-  { dot: "#D16900", label: "Warning / Heavy" },
-  { dot: "#F59E0B", label: "Monitoring" },
-  { dot: "#3B82F6", label: "Info / Roadwork" },
+const CAMERA_PINS = [
+  { dot: "#EF4444", label: "Critical congestion" },
+  { dot: "#D16900", label: "High congestion" },
+  { dot: "#F59E0B", label: "Moderate congestion" },
+  { dot: "#3B82F6", label: "Free flow" },
 ];
 
 export function MapLegend() {
@@ -44,9 +44,9 @@ export function MapLegend() {
           className="text-[10px] font-semibold uppercase tracking-widest mb-2.5"
           style={{ color: "#757780" }}
         >
-          Incident Markers
+          Camera Pins
         </p>
-        {INCIDENT_MARKERS.map(({ dot, label }) => (
+        {CAMERA_PINS.map(({ dot, label }) => (
           <div key={label} className="flex items-center gap-2.5 mb-2">
             <span
               className="size-2.5 rounded-full shrink-0"
