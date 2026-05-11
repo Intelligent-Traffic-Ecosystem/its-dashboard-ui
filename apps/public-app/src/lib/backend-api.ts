@@ -1,7 +1,35 @@
 import type { RoadSegment } from "./types";
 import { CAMERA_LOCATIONS, ROAD_SEGMENTS } from "./dummy-data";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+
+function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1"
+  );
+}
+
+/**
+ * Resolve backend URL for LAN/mobile access.
+ * If env points to localhost but the page is opened from another host,
+ * rewrite the backend host to the current page host and keep the backend port.
+ */
+export function resolveBackendUrl(rawUrl: string = BACKEND_URL): string {
+  if (!rawUrl) return "";
+  if (typeof window === "undefined") return rawUrl;
+
+  try {
+    const parsed = new URL(rawUrl);
+    if (isLoopbackHost(parsed.hostname) && !isLoopbackHost(window.location.hostname)) {
+      parsed.hostname = window.location.hostname;
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return rawUrl;
+  }
+}
 
 export interface TrafficMetric {
   cameraId: string;
@@ -54,12 +82,35 @@ function congestionLevel(pct: number): RoadSegment["level"] {
   return "free";
 }
 
+/**
+ * Map a raw B2 snake_case metric (from WebSocket or REST) to the camelCase
+ * TrafficMetric shape the frontend uses. congestion_score arrives as 0–1
+ * float from the mock server and is converted to a 0–100 scale.
+ */
+export function mapB2SnakeToMetric(
+  raw: Record<string, unknown>,
+): TrafficMetric {
+  const score = (raw.congestion_score as number) ?? 0;
+  return {
+    cameraId: (raw.camera_id as string) ?? "",
+    vehicleCount: (raw.vehicle_count as number) ?? 0,
+    averageSpeedKmh: (raw.avg_speed_kmh as number) ?? 0,
+    // Mock sends 0–1 float; multiply to get 0–100 percentage scale.
+    // If already >1 (i.e. came via the /api/public endpoint already scaled),
+    // leave it as-is so we don't double-multiply.
+    congestionScore: score <= 1 ? Math.round(score * 100) : Math.round(score),
+    congestionLevel: (raw.congestion_level as string) ?? "LOW",
+    windowEnd: raw.window_end as string | undefined,
+  };
+}
+
 /** Fetch current traffic metrics from the public BFF endpoint. */
 export async function getPublicTrafficMetrics(): Promise<TrafficMetric[]> {
-  if (!BACKEND_URL) return [];
+  const backendUrl = resolveBackendUrl();
+  if (!backendUrl) return [];
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/public/traffic/current`, {
+    const res = await fetch(`${backendUrl}/api/public/traffic/current`, {
       cache: "no-store",
       headers: { Accept: "application/json" },
     });
