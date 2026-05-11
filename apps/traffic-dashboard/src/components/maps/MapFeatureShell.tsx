@@ -135,7 +135,7 @@ function HeatmapOverlay({ enabled }: { enabled: boolean }) {
 
 export default function MapFeatureShell() {
   const [layers, setLayers] = useState<Record<MapLayerKey, boolean>>({
-    heatmap: true,
+    heatmap: false,
     incidents: true,
     speed: true,
     satellite: false,
