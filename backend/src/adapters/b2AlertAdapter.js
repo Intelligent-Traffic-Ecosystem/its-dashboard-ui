@@ -12,8 +12,20 @@ const SEVERITY_MAP = {
   INFO: "informational",
 };
 
+const B2_SEVERITY_MAP = {
+  emergency: "EMERGENCY",
+  critical: "CRITICAL",
+  warning: "WARNING",
+  informational: "INFO",
+};
+
 function toB3Severity(b2Severity) {
   return SEVERITY_MAP[String(b2Severity).toUpperCase()] || "informational";
+}
+
+function toB2Severity(severity) {
+  const value = String(severity || "").toLowerCase();
+  return B2_SEVERITY_MAP[value] || severity;
 }
 
 /** Map a B2 AlertOutput object → TrafficAlert shape consumed by the B3 frontend */
@@ -98,7 +110,7 @@ class B2AlertAdapter {
 
     const query = {};
     if (cameraId) query.camera_id = cameraId;
-    if (severity) query.severity = severity;
+    if (severity) query.severity = toB2Severity(severity);
     if (fromDate) query.from = fromDate;
     if (toDate) query.to = toDate;
 
@@ -126,7 +138,7 @@ class B2AlertAdapter {
   streamAlertExport(params = {}) {
     const query = {};
     if (params.cameraId || params.camera_id) query.camera_id = params.cameraId || params.camera_id;
-    if (params.severity) query.severity = params.severity;
+    if (params.severity) query.severity = toB2Severity(params.severity);
     if (params.road_segment) query.road_segment = params.road_segment;
     if (params.from) query.from = params.from;
     if (params.to) query.to = params.to;

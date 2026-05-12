@@ -23,7 +23,7 @@ export default function AlertHistory({ filters }: AlertHistoryProps) {
         <span className="material-symbols-outlined mr-2 text-outline">history</span>
         Recent Acknowledged (Past 2 Hours)
       </h3>
-      <a href="/alerts" className="text-primary text-xs font-bold uppercase hover:opacity-80">
+      <a href="/alerts/archive" className="text-primary text-xs font-bold uppercase hover:opacity-80">
         View Full Archive
       </a>
     </div>
