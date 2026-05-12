@@ -17,7 +17,7 @@ const { WebSocketServer } = require("ws");
 // ─── Config ──────────────────────────────────────────────────────────────────
 const PORT = 18000;
 const CAMERAS = ["cam_01", "cam_02", "cam_03", "cam_04"];
-const CONGESTION_LEVELS = ["LOW", "MODERATE", "HIGH", "CRITICAL"];
+const CONGESTION_LEVELS = ["LOW", "MODERATE", "HIGH", "SEVERE"];
 const STREAM_INTERVAL_MS = 5000;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ function buildMetric(cameraId) {
       ? "MODERATE"
       : congestionScore < 0.8
       ? "HIGH"
-      : "CRITICAL";
+      : "SEVERE";
 
   const windowEnd = new Date();
   const windowStart = new Date(windowEnd - 5000);
@@ -82,7 +82,7 @@ function buildHistory(cameraId, count = 60) {
       vehicle_count: randInt(5, 120),
       avg_speed_kmh: parseFloat(rand(10, 90).toFixed(1)),
       congestion_level:
-        score < 0.3 ? "LOW" : score < 0.55 ? "MODERATE" : score < 0.8 ? "HIGH" : "CRITICAL",
+        score < 0.3 ? "LOW" : score < 0.55 ? "MODERATE" : score < 0.8 ? "HIGH" : "SEVERE",
       congestion_score: score,
       lane_id: null,
     };

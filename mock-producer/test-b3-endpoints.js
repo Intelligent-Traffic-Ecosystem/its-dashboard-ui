@@ -51,7 +51,7 @@ function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
 
 function buildMetric(cameraId) {
   const score = parseFloat(rand(0.1, 0.95).toFixed(3));
-  const level = score < 0.3 ? "LOW" : score < 0.55 ? "MODERATE" : score < 0.8 ? "HIGH" : "CRITICAL";
+  const level = score < 0.3 ? "LOW" : score < 0.55 ? "MODERATE" : score < 0.8 ? "HIGH" : "SEVERE";
   const wEnd   = new Date();
   const wStart = new Date(wEnd - 5000);
   return {
@@ -77,7 +77,7 @@ function buildHistory(cameraId, count = 60) {
       window_end:       wEnd.toISOString(),
       vehicle_count:    randInt(5, 120),
       avg_speed_kmh:    parseFloat(rand(10, 90).toFixed(1)),
-      congestion_level: score < 0.3 ? "LOW" : score < 0.55 ? "MODERATE" : score < 0.8 ? "HIGH" : "CRITICAL",
+      congestion_level: score < 0.3 ? "LOW" : score < 0.55 ? "MODERATE" : score < 0.8 ? "HIGH" : "SEVERE",
       congestion_score: score,
       lane_id:          null,
     };
@@ -232,8 +232,8 @@ async function testAlerts() {
   log("GET  /api/alerts/active", r.status === 200, `HTTP ${r.status}`);
   r = await get("/api/alerts/history");
   log("GET  /api/alerts/history", r.status === 200, `HTTP ${r.status}`);
-  r = await get("/api/alerts/history", { severity: "CRITICAL", limit: 10 });
-  log("GET  /api/alerts/history?severity=CRITICAL&limit=10", r.status === 200, `HTTP ${r.status}`);
+  r = await get("/api/alerts/history", { severity: "SEVERE", limit: 10 });
+  log("GET  /api/alerts/history?severity=SEVERE&limit=10", r.status === 200, `HTTP ${r.status}`);
   r = await get("/api/alerts/export");
   log("GET  /api/alerts/export (CSV)", r.status === 200, `HTTP ${r.status}`);
 }

@@ -78,7 +78,7 @@ function buildHistoryCache() {
       score  = score * 0.9 + base * 0.1;
 
       const level =
-        score < 0.25 ? "LOW" : score < 0.5 ? "MODERATE" : score < 0.75 ? "HIGH" : "CRITICAL";
+        score < 0.25 ? "LOW" : score < 0.5 ? "MODERATE" : score < 0.75 ? "HIGH" : "SEVERE";
       const bc = Math.round(score * 280 * mul + 20);
       const avgSpeed = parseFloat(clamp(65 - score * 55 + rand(-3, 3), 8, 65).toFixed(1));
 
@@ -155,7 +155,7 @@ function buildMetric(cam) {
     score < 0.25 ? "LOW"
     : score < 0.5 ? "MODERATE"
     : score < 0.75 ? "HIGH"
-    : "CRITICAL";
+    : "SEVERE";
 
   const mul = timeMultiplier();
   // Sri Lankan roads: typical peak ~300-400 vehicles / 5 min, night ~30
@@ -197,7 +197,7 @@ function buildHistory(cameraId, count = 60) {
   return Array.from({ length: count }, (_, i) => {
     const wEnd = new Date(now - i * 5000);
     const score = parseFloat(rand(0.1, 0.9).toFixed(4));
-    const level = score < 0.25 ? "LOW" : score < 0.5 ? "MODERATE" : score < 0.75 ? "HIGH" : "CRITICAL";
+    const level = score < 0.25 ? "LOW" : score < 0.5 ? "MODERATE" : score < 0.75 ? "HIGH" : "SEVERE";
     const bc = Math.round(score * 280 + 20);
     return {
       camera_id:        cameraId,
