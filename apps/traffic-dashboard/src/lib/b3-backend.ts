@@ -55,7 +55,7 @@ export interface TrafficMetric {
     averageSpeedKmh: number;
     stoppedRatio: number;
     queueLength: number;
-    congestionLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    congestionLevel: "LOW" | "MODERATE" | "HIGH" | "SEVERE";
     congestionScore: number;
     stale: boolean;
 }

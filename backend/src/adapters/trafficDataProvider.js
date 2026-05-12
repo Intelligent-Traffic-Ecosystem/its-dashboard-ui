@@ -22,6 +22,46 @@ class TrafficDataProvider {
   subscribeToMetrics() {
     throw new Error("TrafficDataProvider.subscribeToMetrics must be implemented");
   }
+
+  getDashboardSummary() {
+    throw new Error("TrafficDataProvider.getDashboardSummary must be implemented");
+  }
+
+  getDashboardEvents() {
+    throw new Error("TrafficDataProvider.getDashboardEvents must be implemented");
+  }
+
+  subscribeLaneMetrics() {
+    throw new Error("TrafficDataProvider.subscribeLaneMetrics must be implemented");
+  }
+
+  subscribeToEvents() {
+    throw new Error("TrafficDataProvider.subscribeToEvents must be implemented");
+  }
+
+  getAnalyticsMetrics() {
+    throw new Error("TrafficDataProvider.getAnalyticsMetrics must be implemented");
+  }
+
+  streamAnalyticsReportPdf() {
+    throw new Error("TrafficDataProvider.streamAnalyticsReportPdf must be implemented");
+  }
+
+  getAlertHistory() {
+    throw new Error("TrafficDataProvider.getAlertHistory must be implemented");
+  }
+
+  acknowledgeAlert() {
+    throw new Error("TrafficDataProvider.acknowledgeAlert must be implemented");
+  }
+
+  streamAlertExport() {
+    throw new Error("TrafficDataProvider.streamAlertExport must be implemented");
+  }
+
+  getCongestionPrediction() {
+    throw new Error("TrafficDataProvider.getCongestionPrediction must be implemented");
+  }
 }
 
 module.exports = TrafficDataProvider;

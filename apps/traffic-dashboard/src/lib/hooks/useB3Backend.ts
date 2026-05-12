@@ -102,6 +102,14 @@ export function useCurrentCongestion(refreshMs: number = 10000) {
     );
 }
 
+export function useCurrentCameraMetric(cameraId: string, refreshMs: number = 10000) {
+    return usePollingResource<TrafficMetric>(
+        () => b3Backend.traffic.getCurrentMetric(cameraId) as Promise<TrafficMetric>,
+        [cameraId, refreshMs],
+        refreshMs
+    );
+}
+
 export function useMapIncidents(refreshMs: number = 10000) {
     return usePollingResource<MapIncident[]>(
         () => b3Backend.map.getIncidents(),

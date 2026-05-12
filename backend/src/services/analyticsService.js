@@ -1,6 +1,8 @@
 class AnalyticsService {
   constructor(trafficService) {
     this.trafficService = trafficService;
+    // trafficService exposes getAnalyticsMetrics / streamAnalyticsReportPdf
+    // which delegate to B2's /api/analytics/* endpoints.
   }
 
   async getSummary(cameraId, from, to) {
@@ -123,91 +125,9 @@ class AnalyticsService {
 
   async getMetrics(from, to) {
     try {
-      // Fetch all metrics within the range (would come from B2 in production)
-      const cameras = await this.trafficService.listCameras();
-      let allMetrics = [];
-
-      for (const camera of cameras) {
-        const cameraId = camera.cameraId || camera.id;
-        try {
-          const metrics = await this.trafficService.getMetricHistory(cameraId, from, to);
-          allMetrics = allMetrics.concat(metrics);
-        } catch (err) {
-          // Skip cameras that fail
-          console.warn(`Failed to fetch metrics for ${cameraId}:`, err.message);
-        }
-      }
-
-      // Calculate average congestion score
-      const avgCongestionScore =
-        allMetrics.length > 0
-          ? allMetrics.reduce((sum, m) => sum + m.congestionScore, 0) / allMetrics.length
-          : 0;
-
-      // Calculate peak hour distribution (by hour of day)
-      const hourMap = {};
-      allMetrics.forEach((metric) => {
-        const date = new Date(metric.timestamp || metric.windowEnd);
-        const hour = date.getUTCHours();
-
-        if (!hourMap[hour]) {
-          hourMap[hour] = { count: 0, vehicleSum: 0, congestionSum: 0 };
-        }
-        hourMap[hour].count++;
-        hourMap[hour].vehicleSum += metric.vehicleCount || 0;
-        hourMap[hour].congestionSum += metric.congestionScore || 0;
-      });
-
-      const peakHourDistribution = Object.entries(hourMap)
-        .map(([hour, data]) => ({
-          hour: parseInt(hour),
-          avg_vehicle_count: Number((data.vehicleSum / data.count).toFixed(2)),
-          avg_congestion_score: Number((data.congestionSum / data.count).toFixed(2)),
-        }))
-        .sort((a, b) => a.hour - b.hour);
-
-      // Top segments (top 10 cameras by congestion)
-      const cameraMetrics = {};
-      allMetrics.forEach((metric) => {
-        if (!cameraMetrics[metric.cameraId]) {
-          cameraMetrics[metric.cameraId] = {
-            cameraId: metric.cameraId,
-            congestionSum: 0,
-            severeCount: 0,
-            count: 0,
-            roadSegment: null, // Would be populated from AdminService cameras
-          };
-        }
-        cameraMetrics[metric.cameraId].congestionSum += metric.congestionScore;
-        cameraMetrics[metric.cameraId].severeCount += metric.congestionLevel === "SEVERE" ? 1 : 0;
-        cameraMetrics[metric.cameraId].count++;
-      });
-
-      const topSegments = Object.values(cameraMetrics)
-        .map((cam) => ({
-          camera_id: cam.cameraId,
-          road_segment: cam.roadSegment,
-          avg_congestion_score: Number((cam.congestionSum / cam.count).toFixed(2)),
-          severe_minutes: cam.severeCount * 5, // Assuming 5-minute windows
-        }))
-        .sort((a, b) => b.avg_congestion_score - a.avg_congestion_score)
-        .slice(0, 10);
-
-      // Incident pie (would aggregate from AlertService in full implementation)
-      const incidentPie = [
-        { severity: "WARNING", count: Math.floor(Math.random() * 100) + 50 },
-        { severity: "CRITICAL", count: Math.floor(Math.random() * 30) + 10 },
-        { severity: "EMERGENCY", count: Math.floor(Math.random() * 5) },
-      ];
-
-      return {
-        range_start: from,
-        range_end: to,
-        avg_congestion_score: Number(avgCongestionScore.toFixed(2)),
-        peak_hour_distribution: peakHourDistribution,
-        top_segments: topSegments,
-        incident_pie: incidentPie,
-      };
+      // Delegate to B2's optimised SQL aggregation.
+      // B2 params are named start/end; B3 routes use from/to.
+      return await this.trafficService.getAnalyticsMetrics(from, to);
     } catch (err) {
       console.error("AnalyticsService.getMetrics error:", err);
       return {
@@ -219,6 +139,11 @@ class AnalyticsService {
         incident_pie: [],
       };
     }
+  }
+
+  // Streams the PDF report directly from B2; returns a raw fetch Response.
+  streamReportPdf(from, to) {
+    return this.trafficService.streamAnalyticsReportPdf(from, to);
   }
 }
 

@@ -14,6 +14,7 @@ const createHealthRouter = require("./routes/health");
 const createAdminRouter = require("./routes/admin");
 const createDashboardRouter = require("./routes/dashboard");
 const createMapRouter = require("./routes/map");
+const createPredictRouter = require("./routes/predict");
 const createPublicRouter = require("./routes/public");
 const requireAuth = require("./middleware/requireAuth");
 const errorHandler = require("./middleware/errorHandler");
@@ -86,6 +87,13 @@ app.use(
   "/api/map",
   createMapRouter({
     mapService,
+    requireAuth,
+  })
+);
+app.use(
+  "/api/predict",
+  createPredictRouter({
+    trafficService,
     requireAuth,
   })
 );

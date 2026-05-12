@@ -24,6 +24,7 @@ export default function AlertsPage() {
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeAlert, setActiveAlert] = useState<TrafficAlert | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const { data: alerts, loading } = useActiveAlerts();
   const { data: metrics } = useCurrentCongestion();
   const { acknowledge, loading: acknowledging } = useAcknowledgeAlert();
@@ -78,12 +79,18 @@ export default function AlertsPage() {
       await acknowledge(alertId);
     }
     setSelectedIds([]);
-    if (activeAlert && selectedIds.includes(activeAlert.id)) setActiveAlert(null);
+    if (activeAlert && selectedIds.includes(activeAlert.id)) {
+      setActiveAlert(null);
+      setIsPanelOpen(false);
+    }
   };
 
   const handleAcknowledged = (alertId: string) => {
     setSelectedIds((current) => current.filter((id) => id !== alertId));
-    if (activeAlert?.id === alertId) setActiveAlert(null);
+    if (activeAlert?.id === alertId) {
+      setActiveAlert(null);
+      setIsPanelOpen(false);
+    }
   };
 
   const exportCsv = () => {
@@ -135,14 +142,16 @@ export default function AlertsPage() {
           alerts={filteredAlerts}
           loading={loading}
           selectedIds={selectedIds}
-          onSelect={setActiveAlert}
+          onSelect={(alert) => { setActiveAlert(alert); setIsPanelOpen(true); }}
           onToggleAll={toggleAll}
           onToggleSelected={toggleSelected}
         />
         <AlertHistory filters={historyFilters} />
       </section>
 
-      <AlertDetailPanel alert={activeAlert ?? filteredAlerts[0] ?? null} onAcknowledged={handleAcknowledged} onClose={() => setActiveAlert(null)} />
+      {isPanelOpen && (
+        <AlertDetailPanel alert={activeAlert} onAcknowledged={handleAcknowledged} onClose={() => setIsPanelOpen(false)} />
+      )}
     </div>
   );
 }

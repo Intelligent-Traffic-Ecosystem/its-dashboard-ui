@@ -75,8 +75,9 @@ export default function AlertTable({
 
   return (
     <div className="bg-surface-container-low rounded-xl border border-white/5 overflow-hidden">
+      <div className="overflow-y-auto max-h-105">
       <table className="w-full text-left border-collapse">
-        <thead>
+        <thead className="sticky top-0 z-10">
           <tr className="bg-slate-900/50 text-label-caps text-outline uppercase border-b border-white/5">
             <th className="p-4 w-10">
               <input
@@ -151,6 +152,7 @@ export default function AlertTable({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

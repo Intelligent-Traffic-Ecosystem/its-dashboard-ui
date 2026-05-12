@@ -6,6 +6,7 @@
   "scripts": {
     "demo-b2": "node demo-b2-server.js",
     "mock-b2": "node mock-b2-server.js",
+    "full-mock-b2": "node full-mock-b2-server.js",
     "test-endpoints": "node test-b3-endpoints.js"
   },
   "dependencies": {

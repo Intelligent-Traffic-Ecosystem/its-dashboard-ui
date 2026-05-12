@@ -310,60 +310,19 @@ function createAnalyticsRouter({ analyticsService, requireAuth }) {
     "/report/pdf",
     asyncHandler(async (req, res) => {
       const { from, to } = requireDateRange(req.query);
-      const metrics = await analyticsService.getMetrics(from, to);
 
-      // Generate PDF using PDFKit
-      const PDFDocument = require("pdfkit");
-      const doc = new PDFDocument();
+      // Proxy B2's PDF stream directly — B2 uses start/end param names.
+      const b2Response = await analyticsService.streamReportPdf(from, to);
+
+      const contentDisposition =
+        b2Response.headers.get("content-disposition") ||
+        `attachment; filename="analytics-report-${from.slice(0, 10)}-${to.slice(0, 10)}.pdf"`;
 
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="its_analytics_${from.slice(0, 10)}_${to.slice(0, 10)}.pdf"`
-      );
+      res.setHeader("Content-Disposition", contentDisposition);
 
-      doc.pipe(res);
-
-      // Title
-      doc.fontSize(20).font("Helvetica-Bold").text("Traffic Analytics Report", { align: "center" });
-      doc.fontSize(10).font("Helvetica").text(`Period: ${from} to ${to}`, { align: "center" });
-      doc.moveDown();
-
-      // Summary section
-      doc.fontSize(14).font("Helvetica-Bold").text("Summary Metrics", { underline: true });
-      doc.fontSize(10).font("Helvetica");
-      doc.text(`Average Congestion Score: ${metrics.avg_congestion_score.toFixed(2)}`);
-      doc.moveDown(0.5);
-
-      // Peak hour distribution table
-      doc.fontSize(14).font("Helvetica-Bold").text("Peak Hour Distribution", { underline: true });
-      doc.fontSize(9).font("Helvetica");
-      doc.text("Hour | Avg Vehicles | Avg Congestion");
-      metrics.peak_hour_distribution.forEach((hour) => {
-        doc.text(`${hour.hour.toString().padStart(2, "0")}:00 | ${hour.avg_vehicle_count.toFixed(1)} | ${(hour.avg_congestion_score * 100).toFixed(1)}%`);
-      });
-      doc.moveDown();
-
-      // Top segments table
-      doc.fontSize(14).font("Helvetica-Bold").text("Top Congested Segments", { underline: true });
-      doc.fontSize(9).font("Helvetica");
-      doc.text("Camera | Road Segment | Avg Congestion | Severe Minutes");
-      metrics.top_segments.forEach((seg) => {
-        const roadSeg = seg.road_segment || "N/A";
-        doc.text(
-          `${seg.camera_id} | ${roadSeg} | ${(seg.avg_congestion_score * 100).toFixed(1)}% | ${seg.severe_minutes.toFixed(1)}`
-        );
-      });
-      doc.moveDown();
-
-      // Incident breakdown
-      doc.fontSize(14).font("Helvetica-Bold").text("Incidents by Severity", { underline: true });
-      doc.fontSize(9).font("Helvetica");
-      metrics.incident_pie.forEach((incident) => {
-        doc.text(`${incident.severity}: ${incident.count} incidents`);
-      });
-
-      doc.end();
+      const { Readable } = require("stream");
+      Readable.fromWeb(b2Response.body).pipe(res);
     })
   );
 

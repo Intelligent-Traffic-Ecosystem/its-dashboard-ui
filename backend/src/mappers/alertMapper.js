@@ -2,9 +2,9 @@ function severityFromMetric(metric) {
   const level = String(metric?.congestionLevel || "LOW").toUpperCase();
   const score = Number(metric?.congestionScore || 0);
 
-  if (score >= 90) return "emergency";
+  if (score >= 0.9 || level === "SEVERE") return "emergency";
   if (level === "HIGH") return "critical";
-  if (level === "MEDIUM") return "warning";
+  if (level === "MODERATE") return "warning";
   return "informational";
 }
 

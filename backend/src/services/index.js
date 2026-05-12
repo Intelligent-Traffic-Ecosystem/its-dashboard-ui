@@ -13,8 +13,8 @@ const trafficService = new TrafficService(trafficDataProvider);
 const analyticsService = new AnalyticsService(trafficService);
 const alertService = new AlertService(trafficService);
 const healthService = new HealthService(trafficDataProvider);
-const adminService = new AdminService();
-const dashboardService = new DashboardService({ trafficService, alertService });
+const adminService = new AdminService({ httpClient: trafficDataProvider.httpClient });
+const dashboardService = new DashboardService({ trafficService });
 const mapService = new MapService({ trafficService, alertService, adminService });
 
 module.exports = {

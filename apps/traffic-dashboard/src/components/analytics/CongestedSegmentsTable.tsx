@@ -7,10 +7,10 @@ import { b3Backend } from "@/lib/b3-backend";
 import CameraDetailModal from "./CameraDetailModal";
 
 const LEVEL_STYLE = {
-  CRITICAL: { bar: "bg-error", badge: "bg-error-container text-on-error-container", label: "CRITICAL" },
-  HIGH: { bar: "bg-error", badge: "bg-error-container text-on-error-container", label: "HIGH" },
-  MEDIUM: { bar: "bg-tertiary-container", badge: "bg-tertiary-container text-on-tertiary-container", label: "HEAVY" },
-  LOW: { bar: "bg-secondary-container", badge: "bg-surface-container-highest text-on-surface-variant", label: "MODERATE" },
+  SEVERE:   { bar: "bg-error",               badge: "bg-error-container text-on-error-container",             label: "SEVERE"    },
+  HIGH:     { bar: "bg-error",               badge: "bg-error-container text-on-error-container",             label: "HIGH"      },
+  MODERATE: { bar: "bg-tertiary-container",  badge: "bg-tertiary-container text-on-tertiary-container",       label: "MODERATE"  },
+  LOW:      { bar: "bg-secondary-container", badge: "bg-surface-container-highest text-on-surface-variant",   label: "LOW"       },
 } as const;
 
 const STATIC_SEGMENTS = [
@@ -103,7 +103,7 @@ export default function CongestedSegmentsTable({ metricsSummary }: CongestedSegm
             {useApi ? (
               metricsSummary!.top_segments.map((segment) => {
                 const score = Math.round(segment.avg_congestion_score * 100);
-                const status = score >= 80 ? LEVEL_STYLE.CRITICAL : score >= 55 ? LEVEL_STYLE.HIGH : score >= 30 ? LEVEL_STYLE.MEDIUM : LEVEL_STYLE.LOW;
+                const status = score >= 80 ? LEVEL_STYLE.SEVERE : score >= 55 ? LEVEL_STYLE.HIGH : score >= 30 ? LEVEL_STYLE.MODERATE : LEVEL_STYLE.LOW;
                 return (
                   <tr key={segment.camera_id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => { setSelectedCamera(segment.camera_id); setModalOpen(true); }}>
                     <td className="px-lg py-md text-on-surface">{segment.road_segment || segment.camera_id}</td>

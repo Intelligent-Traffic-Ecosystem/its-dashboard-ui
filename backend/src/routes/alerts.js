@@ -213,23 +213,26 @@ function createAlertsRouter({ alertService, requireAuth }) {
   router.get(
     "/export",
     asyncHandler(async (req, res) => {
-      const filters = {
-        cameraId: req.query.camera_id || null,
-        severity: req.query.severity || null,
+      const params = {
+        camera_id:    req.query.camera_id    || null,
+        severity:     req.query.severity     || null,
         road_segment: req.query.road_segment || null,
-        alert_type: req.query.alert_type || null,
-        from: req.query.from || null,
-        to: req.query.to || null,
+        alert_type:   req.query.alert_type   || null,
+        from:         req.query.from         || null,
+        to:           req.query.to           || null,
       };
-      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 500000, 1), 500000);
-      const offset = 0;
 
-      const data = await alertService.getAlertHistory({ ...filters, limit, offset });
-      const csv = convertAlertsToCSV(data.items);
+      // Proxy B2's CSV stream directly — real persisted data, correct headers.
+      const b2Response = await alertService.streamAlertExport(params);
+      const contentDisposition =
+        b2Response.headers.get("content-disposition") ||
+        `attachment; filename="alerts_${new Date().toISOString().slice(0, 10)}.csv"`;
 
       res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename="alerts_${new Date().toISOString().slice(0, 10)}.csv"`);
-      res.send(csv);
+      res.setHeader("Content-Disposition", contentDisposition);
+
+      const { Readable } = require("stream");
+      Readable.fromWeb(b2Response.body).pipe(res);
     })
   );
 
@@ -270,50 +273,11 @@ function createAlertsRouter({ alertService, requireAuth }) {
   router.post(
     "/:id/acknowledge",
     asyncHandler(async (req, res) => {
-      res.json(alertService.acknowledge(req.params.id, req.user));
+      res.json(await alertService.acknowledge(req.params.id, req.user));
     })
   );
 
   return router;
-}
-
-/**
- * Helper: Convert alerts array to CSV string
- */
-function convertAlertsToCSV(alerts) {
-  const headers = [
-    "id",
-    "severity",
-    "alert_type",
-    "camera_id",
-    "road_segment",
-    "title",
-    "message",
-    "congestion_level",
-    "congestion_score",
-    "triggered_at",
-    "resolved_at",
-    "acknowledged_by",
-    "acknowledged_at",
-  ];
-
-  const rows = alerts.map((alert) => [
-    alert.id || "",
-    alert.severity || "",
-    alert.type || "",
-    alert.cameraId || "",
-    alert.roadSegment || "",
-    `"${(alert.title || "").replace(/"/g, '""')}"`,
-    `"${(alert.message || "").replace(/"/g, '""')}"`,
-    alert.congestionLevel || "",
-    alert.congestionScore || "",
-    alert.triggeredAt || "",
-    alert.resolvedAt || "",
-    alert.acknowledgedBy || "",
-    alert.acknowledgedAt || "",
-  ]);
-
-  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 }
 
 module.exports = createAlertsRouter;

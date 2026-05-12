@@ -18,7 +18,7 @@ class MapService {
     async getHeatmap() {
         try {
             const currentMetrics = await this.trafficService.getCurrentCongestion();
-            const cameras = this.adminService.listCameras();
+            const cameras = await this.adminService.listCameras();
 
             const cameraMap = new Map(cameras.map((c) => [c.camera_id || c.cameraId, c]));
 
@@ -61,7 +61,7 @@ class MapService {
     async getIncidents() {
         try {
             const activeAlerts = await this.alertService.listActiveAlerts();
-            const cameras = this.adminService.listCameras();
+            const cameras = await this.adminService.listCameras();
 
             const cameraMap = new Map(cameras.map((c) => [c.camera_id || c.cameraId, c]));
 

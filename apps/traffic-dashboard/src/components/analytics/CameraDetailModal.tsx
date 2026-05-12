@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useEffect, useState } from "react";
-import { useAnalyticsSummary, useAnalyticsTrends } from "@/lib/hooks/useB3Backend";
+import { useAnalyticsSummary, useAnalyticsTrends, useCurrentCameraMetric } from "@/lib/hooks/useB3Backend";
 import { b3Backend } from "@/lib/b3-backend";
 
 interface Props {
@@ -26,6 +26,7 @@ export default function CameraDetailModal({ cameraId, open, onClose }: Props) {
 
     const { data: summary, loading: sumLoading } = useAnalyticsSummary(cameraId, from, to);
     const { data: trends, loading: trendsLoading } = useAnalyticsTrends(cameraId, from, to);
+    const { data: liveMetric } = useCurrentCameraMetric(cameraId);
 
     const [location, setLocation] = useState<{ lat?: number; lng?: number; name?: string } | null>(null);
 
@@ -92,6 +93,34 @@ export default function CameraDetailModal({ cameraId, open, onClose }: Props) {
                         </div>
                     </div>
                     <button className="px-md py-sm bg-surface-variant rounded hover:bg-surface-container-highest transition-colors text-sm" onClick={onClose}>Close</button>
+                </div>
+
+                {/* Live Now strip — sourced from GET /api/traffic/metrics/current */}
+                <div className="mb-lg">
+                    <div className="flex items-center gap-2 mb-sm">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <span className="text-[10px] font-bold uppercase text-on-surface-variant tracking-widest">Live Now</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-md">
+                        {(["Speed", "Vehicles", "Queue", "Level"] as const).map((label) => {
+                            const value = !liveMetric ? "—" :
+                                label === "Speed"    ? `${liveMetric.averageSpeedKmh.toFixed(1)} km/h` :
+                                label === "Vehicles" ? String(liveMetric.vehicleCount) :
+                                label === "Queue"    ? String(liveMetric.queueLength) :
+                                                       liveMetric.congestionLevel;
+                            const accent =
+                                liveMetric?.congestionLevel === "SEVERE"   ? "border-red-500/40 text-red-400" :
+                                liveMetric?.congestionLevel === "HIGH"     ? "border-amber-500/40 text-amber-400" :
+                                liveMetric?.congestionLevel === "MODERATE" ? "border-yellow-500/40 text-yellow-300" :
+                                                                              "border-white/10 text-on-surface";
+                            return (
+                                <div key={label} className={`bg-surface-container-low rounded p-md border ${label === "Level" ? accent : "border-white/5"}`}>
+                                    <div className="text-[10px] text-on-surface-variant uppercase font-bold mb-1">{label}</div>
+                                    <div className={`font-bold text-sm font-mono-data ${label === "Level" && liveMetric ? accent.split(" ")[1] : "text-on-surface"}`}>{value}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-lg">

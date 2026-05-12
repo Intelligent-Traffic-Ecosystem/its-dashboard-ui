@@ -13,7 +13,7 @@ export interface TrafficMetric {
   avg_speed_kmh: number;
   stopped_ratio: number;
   queue_length: number;
-  congestion_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  congestion_level: "LOW" | "MODERATE" | "HIGH" | "SEVERE";
   congestion_score: number;
 }
 

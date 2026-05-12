@@ -40,7 +40,7 @@ function createAdminRouter({ adminService, requireAuth }) {
     router.get(
         "/thresholds",
         asyncHandler(async (req, res) => {
-            res.json(adminService.getThresholds());
+            res.json(await adminService.getThresholds());
         })
     );
 
@@ -73,7 +73,7 @@ function createAdminRouter({ adminService, requireAuth }) {
     router.put(
         "/thresholds",
         asyncHandler(async (req, res) => {
-            const updated = adminService.updateThresholds(req.body);
+            const updated = await adminService.updateThresholds(req.body);
             res.json(updated);
         })
     );
@@ -94,7 +94,7 @@ function createAdminRouter({ adminService, requireAuth }) {
     router.get(
         "/zones",
         asyncHandler(async (req, res) => {
-            res.json(adminService.listZones());
+            res.json(await adminService.listZones());
         })
     );
 
@@ -134,7 +134,7 @@ function createAdminRouter({ adminService, requireAuth }) {
     router.post(
         "/zones",
         asyncHandler(async (req, res) => {
-            const zone = adminService.createZone(req.body, req.adminUser);
+            const zone = await adminService.createZone(req.body);
             res.status(201).json(zone);
         })
     );
@@ -162,7 +162,7 @@ function createAdminRouter({ adminService, requireAuth }) {
         "/zones/:zoneId",
         asyncHandler(async (req, res) => {
             const zoneId = parseInt(req.params.zoneId);
-            const updated = adminService.updateZone(zoneId, req.body, req.adminUser);
+            const updated = await adminService.updateZone(zoneId, req.body);
             res.json(updated);
         })
     );
@@ -190,7 +190,7 @@ function createAdminRouter({ adminService, requireAuth }) {
         "/zones/:zoneId",
         asyncHandler(async (req, res) => {
             const zoneId = parseInt(req.params.zoneId);
-            adminService.deleteZone(zoneId, req.adminUser);
+            await adminService.deleteZone(zoneId);
             res.status(204).send();
         })
     );
@@ -211,7 +211,7 @@ function createAdminRouter({ adminService, requireAuth }) {
     router.get(
         "/cameras",
         asyncHandler(async (req, res) => {
-            res.json(adminService.listCameras());
+            res.json(await adminService.listCameras());
         })
     );
 
@@ -252,7 +252,7 @@ function createAdminRouter({ adminService, requireAuth }) {
     router.post(
         "/cameras",
         asyncHandler(async (req, res) => {
-            const camera = adminService.createCamera(req.body, req.adminUser);
+            const camera = await adminService.createCamera(req.body);
             res.status(201).json(camera);
         })
     );
@@ -279,7 +279,7 @@ function createAdminRouter({ adminService, requireAuth }) {
     router.put(
         "/cameras/:cameraId",
         asyncHandler(async (req, res) => {
-            const updated = adminService.updateCamera(req.params.cameraId, req.body, req.adminUser);
+            const updated = await adminService.updateCamera(req.params.cameraId, req.body);
             res.json(updated);
         })
     );
@@ -306,7 +306,7 @@ function createAdminRouter({ adminService, requireAuth }) {
     router.delete(
         "/cameras/:cameraId",
         asyncHandler(async (req, res) => {
-            adminService.deleteCamera(req.params.cameraId, req.adminUser);
+            await adminService.deleteCamera(req.params.cameraId);
             res.status(204).send();
         })
     );
