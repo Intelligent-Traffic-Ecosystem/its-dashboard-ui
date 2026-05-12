@@ -1,30 +1,25 @@
 "use client";
 
-// TODO: Replace trafficVolumeData with:
-// const data = await fetch('/api/analytics/volume?range=60m') via B4 Kong
-// Historical data from B2 PostgreSQL
-
 import {
-  LineChart,
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
   Line,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
 } from "recharts";
-import { TRAFFIC_SAMPLES } from "@/lib/dummy-data";
+import type { CameraChartSample } from "@/lib/backend-api";
 
-const CustomTooltip = ({
-  active,
-  payload,
-  label,
-}: {
+interface CustomTooltipProps {
   active?: boolean;
   payload?: { color: string; name: string; value: number }[];
   label?: string;
-}) => {
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (!active || !payload?.length) return null;
   return (
     <div
@@ -35,7 +30,9 @@ const CustomTooltip = ({
         fontFamily: "var(--font-inter)",
       }}
     >
-      <p className="font-semibold mb-1.5" style={{ color: "#ffffff" }}>{label}</p>
+      <p className="font-semibold mb-1.5" style={{ color: "#ffffff" }}>
+        {label}
+      </p>
       {payload.map((entry) => (
         <p key={entry.name} style={{ color: entry.color }}>
           {entry.name}: <strong>{entry.value.toLocaleString()}</strong>
@@ -45,7 +42,11 @@ const CustomTooltip = ({
   );
 };
 
-export function TrafficVolumeChart() {
+interface TrafficVolumeChartProps {
+  samples: CameraChartSample[];
+}
+
+export function TrafficVolumeChart({ samples }: TrafficVolumeChartProps) {
   return (
     <div
       className="rounded-xl p-5"
@@ -56,30 +57,26 @@ export function TrafficVolumeChart() {
           className="text-[17px] font-semibold text-white"
           style={{ fontFamily: "var(--font-space-grotesk)" }}
         >
-          Traffic Volume — 24h
+          Live Camera Traffic
         </h2>
         <p className="text-xs mt-0.5" style={{ color: "#757780" }}>
-          Hourly vehicle count &amp; average speed
+          Current vehicle count &amp; average speed per camera
         </p>
       </div>
       <ResponsiveContainer width="100%" height={220}>
-        <LineChart
-          data={TRAFFIC_SAMPLES}
+        <ComposedChart
+          data={samples}
           margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
         >
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="rgba(255,255,255,0.04)"
-          />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
           <XAxis
-            dataKey="hour"
+            dataKey="label"
             tick={{ fontSize: 10, fill: "#757780", fontFamily: "var(--font-inter)" }}
             tickLine={false}
             axisLine={false}
-            interval={3}
           />
           <YAxis
-            yAxisId="volume"
+            yAxisId="count"
             tick={{ fontSize: 10, fill: "#757780", fontFamily: "var(--font-inter)" }}
             tickLine={false}
             axisLine={false}
@@ -93,17 +90,20 @@ export function TrafficVolumeChart() {
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend
-            wrapperStyle={{ fontSize: 11, color: "#757780", paddingTop: 12, fontFamily: "var(--font-inter)" }}
+            wrapperStyle={{
+              fontSize: 11,
+              color: "#757780",
+              paddingTop: 12,
+              fontFamily: "var(--font-inter)",
+            }}
           />
-          <Line
-            yAxisId="volume"
-            type="monotone"
-            dataKey="volume"
-            name="Volume"
-            stroke="#4CD7F6"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "#4CD7F6", strokeWidth: 0 }}
+          <Bar
+            yAxisId="count"
+            dataKey="vehicleCount"
+            name="Vehicle Count"
+            fill="#4CD7F6"
+            fillOpacity={0.8}
+            radius={[3, 3, 0, 0]}
           />
           <Line
             yAxisId="speed"
@@ -112,10 +112,10 @@ export function TrafficVolumeChart() {
             name="Avg Speed (km/h)"
             stroke="#3B82F6"
             strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "#3B82F6", strokeWidth: 0 }}
+            dot={{ r: 3, fill: "#3B82F6", strokeWidth: 0 }}
+            activeDot={{ r: 5, fill: "#3B82F6", strokeWidth: 0 }}
           />
-        </LineChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );

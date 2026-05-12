@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useState } from "react";
 
 import { PageShell } from "@/components/layout/PageShell";
-import { IncidentPopup } from "@/components/map/IncidentPopup";
+import { CameraPopup } from "@/components/map/CameraPopup";
 import { DEFAULT_ACTIVE_LAYERS, LayerToggles } from "@/components/map/LayerToggles";
 import { MapLegend } from "@/components/map/MapLegend";
 import { LiveIndicator } from "@/components/ui/LiveIndicator";
@@ -30,7 +30,7 @@ function MapLoadingPlaceholder() {
 
 export default function MapPage() {
   const [activeLayers, setActiveLayers] = useState<Set<string>>(() => new Set(DEFAULT_ACTIVE_LAYERS));
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Incident | null>(null);
 
   const onToggleLayer = useCallback((id: string) => {
     setActiveLayers((prev) => {
@@ -44,26 +44,31 @@ export default function MapPage() {
   return (
     <PageShell
       title="Live Traffic Map"
-      subtitle="Geospatial view of active incidents and congestion heatmap"
+      subtitle="Geospatial view of camera locations and congestion heatmap"
       actions={<LiveIndicator />}
     >
       <div className="flex flex-col gap-4 md:flex-row md:h-[calc(100vh-10rem)]">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:flex md:w-52 md:shrink-0 md:flex-col">
+        {/* Map — first on mobile, second (right) on desktop */}
+        <div className="order-1 md:order-2 relative flex-1 min-h-[58vw] sm:min-h-[420px] md:min-h-0">
+          <MapView
+            className="h-full"
+            activeLayers={activeLayers}
+            onSelectLocation={setSelectedLocation}
+          />
+          <CameraPopup
+            location={selectedLocation}
+            onClose={() => setSelectedLocation(null)}
+          />
+        </div>
+
+        {/* Controls — second on mobile (below map), first (left sidebar) on desktop */}
+        <div className="order-2 md:order-1 grid grid-cols-1 gap-3 sm:grid-cols-2 md:flex md:w-52 md:shrink-0 md:flex-col">
           <div className="min-w-0">
             <LayerToggles activeLayers={activeLayers} onToggle={onToggleLayer} />
           </div>
           <div className="min-w-0">
             <MapLegend />
           </div>
-        </div>
-
-        <div className="relative flex-1 min-h-[320px] sm:min-h-[400px] md:min-h-0">
-          <MapView
-            className="h-full"
-            activeLayers={activeLayers}
-            onSelectIncident={setSelectedIncident}
-          />
-          <IncidentPopup incident={selectedIncident} onClose={() => setSelectedIncident(null)} />
         </div>
       </div>
     </PageShell>

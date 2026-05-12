@@ -8,7 +8,6 @@ import { LiveIndicator } from "@/components/ui/LiveIndicator";
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/map", label: "Live Map" },
-  { href: "/incidents", label: "Incidents" },
 ];
 
 export function TopNav() {

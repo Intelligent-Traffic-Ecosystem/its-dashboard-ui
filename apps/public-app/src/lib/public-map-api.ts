@@ -1,10 +1,8 @@
-import { INCIDENTS } from "./dummy-data";
+import { CAMERA_LOCATIONS } from "./dummy-data";
 import type { Incident, IncidentStatus, IncidentType, Severity } from "./types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
 const USE_DUMMY_MAP_DATA = process.env.NEXT_PUBLIC_USE_DUMMY_MAP_DATA === "true";
-const COLOMBO_CENTER = { lat: 6.9271, lng: 79.8612 };
-const DUMMY_SOURCE_CENTER = { lat: 51.51, lng: -0.1 };
 
 export interface HeatmapPoint {
   cameraId?: string;
@@ -73,14 +71,30 @@ function toSeverity(value?: string, score?: number): Severity {
 
 function toIncidentType(value?: string): IncidentType {
   const normalized = value?.toLowerCase();
-  if (normalized === "accident" || normalized === "roadwork" || normalized === "hazard" || normalized === "event") {
+  if (
+    normalized === "accident" ||
+    normalized === "roadwork" ||
+    normalized === "hazard" ||
+    normalized === "event"
+  ) {
     return normalized;
   }
   return "congestion";
 }
 
+function heatmapWeight(point: HeatmapPoint): number {
+  if (typeof point.weight === "number") return Math.max(0.1, Math.min(1, point.weight));
+  const score = point.congestionScore ?? 0;
+  return Math.max(0.1, Math.min(1, score / 100));
+}
+
 function validCoordinate(lat?: number | null, lng?: number | null) {
-  return typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng);
+  return (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng)
+  );
 }
 
 function mapIncident(item: MapIncident, index: number): Incident | null {
@@ -112,14 +126,14 @@ function mapHeatmapPoint(item: HeatmapPoint, index: number): Incident | null {
 
   const cameraId = item.cameraId ?? item.camera_id ?? `camera-${index + 1}`;
   const vehicleCount = item.vehicleCount ?? item.vehicle_count ?? 0;
-  const score = item.congestionScore ?? Math.round((item.weight ?? 0) * 100);
+  const score = item.congestionScore ?? Math.round(heatmapWeight(item) * 100);
   const severity = toSeverity(undefined, score);
 
   return {
     id: `TRAFFIC-${cameraId}`,
     type: "congestion",
     severity,
-    status: score >= 60 ? "active" : "monitoring",
+    status: (score >= 60 ? "active" : "monitoring") satisfies IncidentStatus,
     location: `${cameraId} traffic camera`,
     description: `${vehicleCount} vehicles detected. Congestion score ${score}.`,
     reportedAt: new Date().toISOString(),
@@ -129,67 +143,55 @@ function mapHeatmapPoint(item: HeatmapPoint, index: number): Incident | null {
   };
 }
 
-function dummyIncidentToColombo(incident: Incident): Incident {
-  return {
-    ...incident,
-    lat: COLOMBO_CENTER.lat + (incident.lat - DUMMY_SOURCE_CENTER.lat),
-    lng: COLOMBO_CENTER.lng + (incident.lng - DUMMY_SOURCE_CENTER.lng),
-  };
-}
-
-function severityScore(severity: Severity) {
-  switch (severity) {
-    case "critical":
-      return 90;
-    case "high":
-      return 72;
-    case "medium":
-      return 52;
-    case "low":
-    default:
-      return 24;
-  }
-}
-
 function getDummyMapData(): PublicMapData {
-  const incidents = INCIDENTS.map(dummyIncidentToColombo);
-  const heatmap = incidents.map<HeatmapPoint>((incident, index) => {
-    const score = severityScore(incident.severity);
-    return {
-      cameraId: `demo-cam-${String(index + 1).padStart(2, "0")}`,
-      camera_id: `demo-cam-${String(index + 1).padStart(2, "0")}`,
-      lat: incident.lat,
-      lng: incident.lng,
-      latitude: incident.lat,
-      longitude: incident.lng,
-      weight: Math.max(0.1, Math.min(1, score / 100)),
-      vehicleCount: 8 + index * 4,
-      vehicle_count: 8 + index * 4,
-      congestionScore: score,
-    };
-  });
+  const heatmap: HeatmapPoint[] = CAMERA_LOCATIONS.map((cam) => ({
+    cameraId: cam.cameraId,
+    camera_id: cam.cameraId,
+    lat: cam.lat,
+    lng: cam.lng,
+    latitude: cam.lat,
+    longitude: cam.lng,
+    weight: cam.weight,
+    vehicleCount: cam.vehicleCount,
+    vehicle_count: cam.vehicleCount,
+    congestionScore: cam.congestionScore,
+  }));
+  const trafficLocations = heatmap
+    .map(mapHeatmapPoint)
+    .filter((item): item is Incident => item !== null);
 
   return {
     heatmap,
-    incidents,
-    trafficLocations: heatmap.map(mapHeatmapPoint).filter((item): item is Incident => item !== null),
+    incidents: trafficLocations,
+    trafficLocations,
   };
 }
 
 export async function getPublicMapData(): Promise<PublicMapData> {
   if (USE_DUMMY_MAP_DATA) return getDummyMapData();
 
-  const [heatmapRes, incidentsRes] = await Promise.all([
-    getJson<{ items: HeatmapPoint[] }>("/api/public/map/heatmap"),
-    getJson<{ items: MapIncident[] }>("/api/public/map/incidents"),
-  ]);
+  try {
+    const [heatmapRes, incidentsRes] = await Promise.all([
+      getJson<{ items: HeatmapPoint[] }>("/api/public/map/heatmap"),
+      getJson<{ items: MapIncident[] }>("/api/public/map/incidents"),
+    ]);
 
-  const heatmap = heatmapRes.items ?? [];
-  const incidentRows = incidentsRes.items ?? [];
+    const heatmap = heatmapRes.items ?? [];
+    const incidents = (incidentsRes.items ?? [])
+      .map(mapIncident)
+      .filter((item): item is Incident => item !== null);
+    const trafficLocations = heatmap
+      .map(mapHeatmapPoint)
+      .filter((item): item is Incident => item !== null);
 
-  return {
-    heatmap,
-    incidents: incidentRows.map(mapIncident).filter((item): item is Incident => item !== null),
-    trafficLocations: heatmap.map(mapHeatmapPoint).filter((item): item is Incident => item !== null),
-  };
+    if (heatmap.length === 0 && incidents.length === 0) return getDummyMapData();
+
+    return {
+      heatmap,
+      incidents,
+      trafficLocations,
+    };
+  } catch {
+    return getDummyMapData();
+  }
 }
