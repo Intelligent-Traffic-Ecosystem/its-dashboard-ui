@@ -21,6 +21,12 @@ export interface TrafficAlert {
 
 export interface AlertHistoryItem {
     alertId: string;
+    cameraId?: string;
+    severity?: "informational" | "warning" | "critical" | "emergency";
+    title?: string;
+    roadSegment?: string | null;
+    congestionScore?: number | null;
+    triggeredAt?: string;
     acknowledgedBy: string;
     acknowledgedAt: string;
     status: "acknowledged";

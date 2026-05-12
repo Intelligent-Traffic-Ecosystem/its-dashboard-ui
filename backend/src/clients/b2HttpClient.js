@@ -27,8 +27,6 @@ class B2HttpClient {
   }
 
   _flagUpstream(reason) {
-    // Only signal the router on network / 5xx-class failures; the router
-    // ignores reports anyway when it's already on fallback.
     if (this.router) this.router.reportFailure(reason);
   }
 
@@ -94,7 +92,6 @@ class B2HttpClient {
         });
       }
 
-      // 204 No Content — no body to parse
       if (response.status === 204) return null;
       return response.json();
     } catch (error) {
@@ -131,7 +128,7 @@ class B2HttpClient {
       throw new UpstreamError("B2 stream request failed", { cause: error });
     }
 
-    clearTimeout(timeout); // don't abort while body is streaming
+    clearTimeout(timeout);
     if (!response.ok) {
       if (response.status >= 500) this._flagUpstream(`STREAM ${path} → ${response.status}`);
       throw new UpstreamError(`B2 returned ${response.status}`, {
