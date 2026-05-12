@@ -12,20 +12,31 @@ class MapService {
     }
 
     /**
+     * Best-effort camera lookup. The admin endpoint requires X-Admin-Token,
+     * which the public map render doesn't have — so a 401/403 is normal in
+     * the public flow and must not zero out the whole heatmap. Falls back
+     * to the static camera↔coordinate map in mapFeatureMapper.
+     */
+    async _safeCameraMap() {
+        try {
+            const cameras = await this.adminService.listCameras();
+            return new Map(cameras.map((c) => [c.camera_id || c.cameraId, c]));
+        } catch {
+            return new Map();
+        }
+    }
+
+    /**
      * Get heatmap data — vehicle density points for map visualization
      * Uses latest metric per camera within last 5 minutes
      */
     async getHeatmap() {
         try {
             const currentMetrics = await this.trafficService.getCurrentCongestion();
-            const cameras = await this.adminService.listCameras();
+            const cameraMap = await this._safeCameraMap();
 
-            const cameraMap = new Map(cameras.map((c) => [c.camera_id || c.cameraId, c]));
-
-            // Calculate max vehicle count for normalization
             const maxVehicleCount = Math.max(...currentMetrics.map((m) => m.vehicleCount || 0), 1);
 
-            // Build heatmap points with lat/lng from camera registry
             const heatmapPoints = currentMetrics
                 .map((metric) => {
                     const camera = cameraMap.get(metric.cameraId);
@@ -61,11 +72,8 @@ class MapService {
     async getIncidents() {
         try {
             const activeAlerts = await this.alertService.listActiveAlerts();
-            const cameras = await this.adminService.listCameras();
+            const cameraMap = await this._safeCameraMap();
 
-            const cameraMap = new Map(cameras.map((c) => [c.camera_id || c.cameraId, c]));
-
-            // Build incident markers
             const incidents = activeAlerts.map((alert) => {
                 const camera = cameraMap.get(alert.cameraId);
                 const fallback = getCoordinateForCamera(alert.cameraId);

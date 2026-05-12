@@ -87,9 +87,10 @@ class B2WebSocketClient {
 
     this.socket.on("close", () => {
       this.connected = false;
-      // A close that wasn't requested by the router is a hard signal — let
-      // the router know so it can switch faster than the 10s probe cycle.
-      if (this.router) this.router.reportFailure(`ws ${this.routerKey} closed`);
+      // Don't report WS closes to the router. Periodic idle-timeouts and
+      // graceful reconnects are normal for these streams and would cause
+      // the router to flap. The HTTP /health probe is the source of truth
+      // for primary↔fallback routing.
       this.scheduleReconnect();
     });
 
