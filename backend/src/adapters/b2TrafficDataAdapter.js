@@ -1,6 +1,7 @@
 const TrafficDataProvider = require("./trafficDataProvider");
 const { B2HttpClient } = require("../clients/b2HttpClient");
 const B2WebSocketClient = require("../clients/b2WebSocketClient");
+const UpstreamRouter = require("../clients/upstreamRouter");
 const env = require("../config/env");
 const {
   mapB2Camera,
@@ -13,12 +14,13 @@ const {
 } = require("../mappers/b2MetricMapper");
 
 class B2TrafficDataAdapter extends TrafficDataProvider {
-  constructor({ httpClient, websocketClient, laneMetricsClient, eventsClient }) {
+  constructor({ httpClient, websocketClient, laneMetricsClient, eventsClient, router = null }) {
     super();
     this.httpClient = httpClient;
     this.websocketClient = websocketClient;
     this.laneMetricsClient = laneMetricsClient;
     this.eventsClient = eventsClient;
+    this.router = router;
   }
 
   async getHealth() {
@@ -140,23 +142,49 @@ class B2TrafficDataAdapter extends TrafficDataProvider {
 }
 
 function createB2TrafficDataAdapter(env) {
+  const hasFallback = Boolean(env.b2FallbackApiBaseUrl);
+
+  const router = hasFallback
+    ? new UpstreamRouter({
+        primary: {
+          base: env.b2ApiBaseUrl,
+          wsMetrics: env.b2WsUrl,
+          wsLanes: env.b2WsLanesUrl,
+          wsEvents: env.b2WsEventsUrl,
+        },
+        fallback: {
+          base: env.b2FallbackApiBaseUrl,
+          wsMetrics: env.b2FallbackWsUrl || `${env.b2FallbackApiBaseUrl.replace(/^http/, "ws")}/ws/metrics`,
+          wsLanes: env.b2FallbackWsLanesUrl || `${env.b2FallbackApiBaseUrl.replace(/^http/, "ws")}/ws/metrics/lanes`,
+          wsEvents: env.b2FallbackWsEventsUrl || `${env.b2FallbackApiBaseUrl.replace(/^http/, "ws")}/ws/events`,
+        },
+        options: {
+          probeIntervalMs: env.upstreamProbeIntervalMs,
+          probeTimeoutMs: env.upstreamProbeTimeoutMs,
+          failureThreshold: env.upstreamFailureThreshold,
+          recoveryThreshold: env.upstreamRecoveryThreshold,
+          cooldownMs: env.upstreamCooldownMs,
+        },
+      })
+    : null;
+
+  if (router) router.start();
+
+  const httpClient = router
+    ? new B2HttpClient({ router, timeoutMs: env.b2RequestTimeoutMs })
+    : new B2HttpClient({ baseUrl: env.b2ApiBaseUrl, timeoutMs: env.b2RequestTimeoutMs });
+
+  const wsBuild = (key, staticUrl) =>
+    router
+      ? new B2WebSocketClient({ router, key, reconnectMs: env.b2WsReconnectMs })
+      : new B2WebSocketClient({ url: staticUrl, reconnectMs: env.b2WsReconnectMs });
+
   return new B2TrafficDataAdapter({
-    httpClient: new B2HttpClient({
-      baseUrl: env.b2ApiBaseUrl,
-      timeoutMs: env.b2RequestTimeoutMs,
-    }),
-    websocketClient: new B2WebSocketClient({
-      url: env.b2WsUrl,
-      reconnectMs: env.b2WsReconnectMs,
-    }),
-    laneMetricsClient: new B2WebSocketClient({
-      url: env.b2WsLanesUrl,
-      reconnectMs: env.b2WsReconnectMs,
-    }),
-    eventsClient: new B2WebSocketClient({
-      url: env.b2WsEventsUrl,
-      reconnectMs: env.b2WsReconnectMs,
-    }),
+    httpClient,
+    websocketClient: wsBuild("wsMetrics", env.b2WsUrl),
+    laneMetricsClient: wsBuild("wsLanes", env.b2WsLanesUrl),
+    eventsClient: wsBuild("wsEvents", env.b2WsEventsUrl),
+    router,
   });
 }
 

@@ -10,10 +10,26 @@ class UpstreamError extends Error {
 }
 
 class B2HttpClient {
-  constructor({ baseUrl, timeoutMs, fetchImpl = fetch }) {
-    this.baseUrl = baseUrl.replace(/\/$/, "").replace("localhost", "127.0.0.1");
+  constructor({ baseUrl, timeoutMs, fetchImpl = fetch, router = null }) {
+    this.staticBaseUrl = baseUrl
+      ? baseUrl.replace(/\/$/, "").replace("localhost", "127.0.0.1")
+      : null;
+    this.router = router;
     this.timeoutMs = timeoutMs;
     this.fetch = fetchImpl;
+  }
+
+  get baseUrl() {
+    if (this.router) {
+      return this.router.urls().base.replace("localhost", "127.0.0.1");
+    }
+    return this.staticBaseUrl;
+  }
+
+  _flagUpstream(reason) {
+    // Only signal the router on network / 5xx-class failures; the router
+    // ignores reports anyway when it's already on fallback.
+    if (this.router) this.router.reportFailure(reason);
   }
 
   async get(path, query = {}, extraHeaders = {}) {
@@ -35,6 +51,7 @@ class B2HttpClient {
       });
 
       if (!response.ok) {
+        if (response.status >= 500) this._flagUpstream(`GET ${path} → ${response.status}`);
         throw new UpstreamError(`B2 returned ${response.status}`, {
           statusCode: response.status >= 500 ? 503 : response.status,
         });
@@ -43,6 +60,7 @@ class B2HttpClient {
       return response.json();
     } catch (error) {
       if (error instanceof UpstreamError) throw error;
+      this._flagUpstream(`GET ${path}: ${error.message}`);
       throw new UpstreamError("B2 request failed", { cause: error });
     } finally {
       clearTimeout(timeout);
@@ -70,6 +88,7 @@ class B2HttpClient {
       });
 
       if (!response.ok) {
+        if (response.status >= 500) this._flagUpstream(`DELETE ${path} → ${response.status}`);
         throw new UpstreamError(`B2 returned ${response.status}`, {
           statusCode: response.status >= 500 ? 503 : response.status,
         });
@@ -80,6 +99,7 @@ class B2HttpClient {
       return response.json();
     } catch (error) {
       if (error instanceof UpstreamError) throw error;
+      this._flagUpstream(`DELETE ${path}: ${error.message}`);
       throw new UpstreamError("B2 DELETE request failed", { cause: error });
     } finally {
       clearTimeout(timeout);
@@ -107,11 +127,13 @@ class B2HttpClient {
       });
     } catch (error) {
       clearTimeout(timeout);
+      this._flagUpstream(`STREAM ${path}: ${error.message}`);
       throw new UpstreamError("B2 stream request failed", { cause: error });
     }
 
     clearTimeout(timeout); // don't abort while body is streaming
     if (!response.ok) {
+      if (response.status >= 500) this._flagUpstream(`STREAM ${path} → ${response.status}`);
       throw new UpstreamError(`B2 returned ${response.status}`, {
         statusCode: response.status >= 500 ? 503 : response.status,
       });
@@ -137,6 +159,7 @@ class B2HttpClient {
       });
 
       if (!response.ok) {
+        if (response.status >= 500) this._flagUpstream(`${method} ${path} → ${response.status}`);
         throw new UpstreamError(`B2 returned ${response.status}`, {
           statusCode: response.status >= 500 ? 503 : response.status,
         });
@@ -145,6 +168,7 @@ class B2HttpClient {
       return response.json();
     } catch (error) {
       if (error instanceof UpstreamError) throw error;
+      this._flagUpstream(`${method} ${path}: ${error.message}`);
       throw new UpstreamError(`B2 ${method} request failed`, { cause: error });
     } finally {
       clearTimeout(timeout);
