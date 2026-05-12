@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -17,17 +17,55 @@ export interface MapPin {
   details: Record<string, string | number>;
 }
 
+export interface IncidentPoint {
+  alertId?: string | number;
+  alert_id?: string | number;
+  cameraId?: string;
+  camera_id?: string;
+  lat?: number | null;
+  lng?: number | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  severity?: string;
+  alertType?: string;
+  alert_type?: string;
+  title?: string;
+  message?: string;
+  timestamp?: string;
+  triggered_at?: string;
+}
+
+export interface HeatPoint {
+  cameraId?: string;
+  camera_id?: string;
+  lat?: number;
+  lng?: number;
+  latitude?: number;
+  longitude?: number;
+  weight?: number;
+  vehicleCount?: number;
+  vehicle_count?: number;
+  congestionScore?: number;
+}
+
 interface GoogleMapProps {
   className?: string;
   center?: { lat: number; lng: number };
   zoom?: number;
   allowCustomPins?: boolean;
+  /** Live alerts to render as Google markers (always follows map view). */
+  incidents?: IncidentPoint[];
+  /** Live heatmap points to render as a Google visualization HeatmapLayer. */
+  heatmap?: HeatPoint[];
+  showIncidents?: boolean;
+  showHeatmap?: boolean;
+  showCameras?: boolean;
+  satellite?: boolean;
 }
 
 const SCRIPT_ID = "google-maps-sdk";
 const DEFAULT_CENTER = { lat: 6.9108, lng: 79.8699 }; // Borella, Colombo
 
-// Pin colour per type/severity
 const PIN_STYLE: Record<string, { bg: string; border: string; icon: string }> = {
   incident_critical:  { bg: "#7f1d1d", border: "#ef4444", icon: "warning" },
   incident_warning:   { bg: "#78350f", border: "#f59e0b", icon: "warning" },
@@ -37,16 +75,26 @@ const PIN_STYLE: Record<string, { bg: string; border: string; icon: string }> = 
   cctv:               { bg: "#052e16", border: "#22c55e", icon: "videocam" },
 };
 
+const INCIDENT_STYLE: Record<string, { bg: string; border: string; icon: string }> = {
+  emergency: { bg: "#450a0a", border: "#ef4444", icon: "emergency" },
+  critical:  { bg: "#7f1d1d", border: "#ef4444", icon: "warning" },
+  warning:   { bg: "#78350f", border: "#f59e0b", icon: "warning" },
+  informational: { bg: "#1e3a5f", border: "#adc6ff", icon: "info" },
+};
+
 function getPinStyle(pin: MapPin) {
   return (
     PIN_STYLE[`${pin.type}_${pin.severity}`] ??
     PIN_STYLE[pin.type] ??
-    PIN_STYLE["incident_info"]
+    PIN_STYLE.incident_info
   );
 }
 
-function buildMarkerElement(pin: MapPin): HTMLElement {
-  const style = getPinStyle(pin);
+function getIncidentStyle(severity: string) {
+  return INCIDENT_STYLE[severity.toLowerCase()] ?? INCIDENT_STYLE.informational;
+}
+
+function buildMarkerElement(style: { bg: string; border: string; icon: string }, pulse = false): HTMLElement {
   const el = document.createElement("div");
   el.style.cssText = `
     width:36px;height:36px;border-radius:50%;
@@ -58,54 +106,74 @@ function buildMarkerElement(pin: MapPin): HTMLElement {
     font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24;
   `;
   el.textContent = style.icon;
-  if (pin.severity === "critical") {
-    el.style.animation = "pulse 2s infinite";
-  }
+  if (pulse) el.style.animation = "pulse 2s infinite";
   return el;
 }
 
-function buildInfoContent(pin: MapPin): HTMLElement {
+function buildPinInfo(pin: MapPin): HTMLElement {
   const style = getPinStyle(pin);
   const ago = Math.round((Date.now() - new Date(pin.timestamp).getTime()) / 60000);
   const agoLabel = ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`;
 
   const wrap = document.createElement("div");
-  wrap.style.cssText =
-    "font-family:Inter,sans-serif;padding:2px;min-width:220px;max-width:260px";
-
+  wrap.style.cssText = "font-family:Inter,sans-serif;padding:2px;min-width:220px;max-width:260px";
   wrap.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
-      <span style="
-        font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
         background:${style.bg};color:${style.border};
-        border:1px solid ${style.border}44;padding:2px 8px;border-radius:4px
-      ">${pin.type}</span>
+        border:1px solid ${style.border}44;padding:2px 8px;border-radius:4px">${pin.type}</span>
       <span style="font-size:11px;color:#8c909f;font-variant-numeric:tabular-nums">${agoLabel}</span>
     </div>
-    <div style="font-size:14px;font-weight:600;color:#e1e2ec;margin-bottom:4px;line-height:1.3">
-      ${pin.title}
-    </div>
-    <div style="font-size:12px;color:#8c909f;margin-bottom:10px;line-height:1.5">
-      ${pin.description}
-    </div>
+    <div style="font-size:14px;font-weight:600;color:#e1e2ec;margin-bottom:4px;line-height:1.3">${pin.title}</div>
+    <div style="font-size:12px;color:#8c909f;margin-bottom:10px;line-height:1.5">${pin.description}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-      ${Object.entries(pin.details)
-        .map(
-          ([k, v]) => `
+      ${Object.entries(pin.details).map(([k, v]) => `
         <div style="background:#10131a;border:1px solid #424754;border-radius:6px;padding:6px 8px">
           <div style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#424754;margin-bottom:2px">
-            ${k.replace(/([A-Z])/g, " $1").replace(/([a-z])([A-Z])/g, "$1 $2")}
+            ${k.replace(/([A-Z])/g, " $1")}
           </div>
           <div style="font-size:13px;font-weight:600;color:${style.border}">${v}</div>
-        </div>`
-        )
-        .join("")}
+        </div>`).join("")}
       <div style="background:#10131a;border:1px solid #424754;border-radius:6px;padding:6px 8px">
         <div style="font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:#424754;margin-bottom:2px">Status</div>
         <div style="font-size:13px;font-weight:600;color:#22c55e">${pin.status}</div>
       </div>
+    </div>`;
+  return wrap;
+}
+
+function buildIncidentInfo(incident: IncidentPoint): HTMLElement {
+  const severity = String(incident.severity || "informational").toLowerCase();
+  const style = getIncidentStyle(severity);
+  const ts = incident.timestamp ?? incident.triggered_at ?? new Date().toISOString();
+  const ago = Math.round((Date.now() - new Date(ts).getTime()) / 60000);
+  const agoLabel = ago < 60 ? `${ago}m ago` : `${Math.round(ago / 60)}h ago`;
+
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "font-family:Inter,sans-serif;padding:2px;min-width:220px;max-width:260px";
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+        background:${style.bg};color:${style.border};
+        border:1px solid ${style.border}44;padding:2px 8px;border-radius:4px">${severity}</span>
+      <span style="font-size:11px;color:#8c909f;font-variant-numeric:tabular-nums">${agoLabel}</span>
     </div>
-  `;
+    <div style="font-size:14px;font-weight:600;color:#e1e2ec;margin-bottom:4px;line-height:1.3">
+      ${incident.title ?? "Active traffic incident"}
+    </div>
+    <div style="font-size:12px;color:#8c909f;margin-bottom:10px;line-height:1.5">
+      ${incident.message ?? incident.alertType ?? incident.alert_type ?? "Live congestion alert"}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+      <div style="background:#10131a;border:1px solid #424754;border-radius:6px;padding:6px 8px">
+        <div style="font-size:9px;text-transform:uppercase;color:#424754;margin-bottom:2px">Camera</div>
+        <div style="font-weight:600;color:${style.border}">${incident.cameraId ?? incident.camera_id ?? "—"}</div>
+      </div>
+      <div style="background:#10131a;border:1px solid #424754;border-radius:6px;padding:6px 8px">
+        <div style="font-size:9px;text-transform:uppercase;color:#424754;margin-bottom:2px">Type</div>
+        <div style="font-weight:600;color:${style.border}">${incident.alertType ?? incident.alert_type ?? "congestion"}</div>
+      </div>
+    </div>`;
   return wrap;
 }
 
@@ -115,49 +183,110 @@ function isUsableGoogleKey(apiKey: string) {
 
 async function fetchMapPins(): Promise<MapPin[]> {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-  if (!backendUrl) {
-    console.warn("[Map] NEXT_PUBLIC_BACKEND_URL not set — cannot fetch pins.");
-    return [];
-  }
-
+  if (!backendUrl) return [];
   try {
     const res = await fetch(`${backendUrl}/api/locations`, { credentials: "include" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const pins = await res.json();
-    return pins;
-  } catch (err: any) {
-    console.warn("[Map] pins unavailable:", err.message);
+    return await res.json();
+  } catch {
     return [];
   }
 }
 
-function LocalFallbackMap({ pins }: { pins: MapPin[] }) {
-  const displayPins = pins;
-  // Colombo District bounding box
-  const minLat = 6.83; const maxLat = 6.97;
-  const minLng = 79.83; const maxLng = 79.94;
+function pointLatLng(p: IncidentPoint | HeatPoint): { lat: number; lng: number } | null {
+  const lat = (p as any).lat ?? (p as any).latitude;
+  const lng = (p as any).lng ?? (p as any).longitude;
+  if (typeof lat !== "number" || typeof lng !== "number" || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return null;
+  }
+  return { lat, lng };
+}
+
+function LocalFallbackMap({
+  pins,
+  incidents,
+  heatmap,
+  showIncidents,
+  showHeatmap,
+  showCameras,
+}: {
+  pins: MapPin[];
+  incidents: IncidentPoint[];
+  heatmap: HeatPoint[];
+  showIncidents: boolean;
+  showHeatmap: boolean;
+  showCameras: boolean;
+}) {
+  // Colombo District bounding box — covers cam_01 (Bambalapitiya) + cam_02 (Kelaniya).
+  const minLat = 6.83;
+  const maxLat = 6.97;
+  const minLng = 79.83;
+  const maxLng = 79.94;
+
+  const project = (lat: number, lng: number) => ({
+    left: ((lng - minLng) / (maxLng - minLng)) * 84 + 8,
+    top: (1 - (lat - minLat) / (maxLat - minLat)) * 74 + 10,
+  });
 
   return (
     <div className="absolute inset-0 overflow-hidden bg-[#121822]">
       <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(rgba(76,215,246,.10)_1px,transparent_1px),linear-gradient(90deg,rgba(76,215,246,.10)_1px,transparent_1px)] [background-size:42px_42px]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(76,215,246,.18),transparent_42%),linear-gradient(135deg,rgba(173,198,255,.12),transparent_45%)]" />
-      {/* Stylised Colombo road sketch */}
       <div className="absolute left-[8%] right-[10%] top-[38%] h-3 rotate-[-8deg] rounded-full bg-[#2d3542]" />
       <div className="absolute left-[18%] right-[6%] top-[58%] h-3 rotate-[12deg] rounded-full bg-[#2d3542]" />
       <div className="absolute bottom-4 left-4 rounded bg-surface-container/90 px-3 py-2 text-[11px] text-on-surface-variant border border-outline-variant">
         Colombo District preview — add a valid Google Maps API key for live tiles.
       </div>
-      {displayPins.map((pin) => {
+
+      {showHeatmap && heatmap.map((p, i) => {
+        const ll = pointLatLng(p);
+        if (!ll) return null;
+        const w = Math.max(0.15, Math.min(1, p.weight ?? 0.3));
+        const { left, top } = project(ll.lat, ll.lng);
+        return (
+          <div
+            key={`heat-${i}`}
+            className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full blur-md pointer-events-none"
+            style={{
+              left: `${left}%`,
+              top: `${top}%`,
+              width: `${40 + w * 80}px`,
+              height: `${40 + w * 80}px`,
+              background: `rgba(239, 68, 68, ${0.12 + w * 0.28})`,
+              boxShadow: `0 0 ${24 + w * 40}px rgba(245, 158, 11, ${0.15 + w * 0.25})`,
+            }}
+          />
+        );
+      })}
+
+      {showCameras && pins.map((pin) => {
         const style = getPinStyle(pin);
-        // Project lat/lng to % inside the bounding box (lat goes top→bottom)
-        const left = ((pin.lng - minLng) / (maxLng - minLng)) * 84 + 8;
-        const top  = (1 - (pin.lat - minLat) / (maxLat - minLat)) * 74 + 10;
+        const { left, top } = project(pin.lat, pin.lng);
         return (
           <button
             key={pin.id}
             type="button"
             title={`${pin.title}: ${pin.description}`}
             className="absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 shadow-lg"
+            style={{ left: `${left}%`, top: `${top}%`, background: style.bg, borderColor: style.border, color: style.border }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{style.icon}</span>
+          </button>
+        );
+      })}
+
+      {showIncidents && incidents.map((inc, i) => {
+        const ll = pointLatLng(inc);
+        if (!ll) return null;
+        const severity = String(inc.severity || "informational").toLowerCase();
+        const style = getIncidentStyle(severity);
+        const { left, top } = project(ll.lat, ll.lng);
+        return (
+          <button
+            key={`inc-${i}`}
+            type="button"
+            title={inc.title ?? "Active incident"}
+            className="absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 shadow-lg animate-pulse"
             style={{ left: `${left}%`, top: `${top}%`, background: style.bg, borderColor: style.border, color: style.border }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{style.icon}</span>
@@ -173,26 +302,32 @@ export default function GoogleMap({
   center = DEFAULT_CENTER,
   zoom = 13,
   allowCustomPins = false,
+  incidents = [],
+  heatmap = [],
+  showIncidents = true,
+  showHeatmap = false,
+  showCameras = true,
+  satellite = false,
 }: GoogleMapProps) {
-  const containerRef    = useRef<HTMLDivElement>(null);
-  const initialised     = useRef(false);
-  const markersRef      = useRef<any[]>([]);
-  const [error, setError]           = useState<string | null>(null);
-  const [pins,  setPins]            = useState<MapPin[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const initialised = useRef(false);
+  const cameraMarkersRef = useRef<any[]>([]);
+  const incidentMarkersRef = useRef<any[]>([]);
+  const heatLayerRef = useRef<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pins, setPins] = useState<MapPin[]>([]);
   const [useFallback, setUseFallback] = useState(false);
-  const mapRef          = useRef<any>(null);
-  const infoWindowRef   = useRef<any>(null);
-  const AdvancedRef     = useRef<any>(null);
+  const mapRef = useRef<any>(null);
+  const infoWindowRef = useRef<any>(null);
+  const AdvancedRef = useRef<any>(null);
 
   useEffect(() => {
-    console.log("[Map] effect fired — initialised:", initialised.current, "container:", !!containerRef.current);
     if (initialised.current || !containerRef.current) return;
     initialised.current = true;
 
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
     (window as any).gm_authFailure = () => {
-      console.warn("[Map] Google Maps auth failed — switching to local preview map.");
       setError("Google Maps API key is missing or invalid.");
       setUseFallback(true);
     };
@@ -205,89 +340,42 @@ export default function GoogleMap({
         return;
       }
 
-      console.log("[Map] initMap started");
       const g = (window as any).google;
-      console.log("[Map] google.maps:", !!g?.maps, "importLibrary:", typeof g?.maps?.importLibrary);
-
       const { Map, InfoWindow } = await g.maps.importLibrary("maps");
-      console.log("[Map] maps library loaded");
       const { AdvancedMarkerElement } = await g.maps.importLibrary("marker");
-      console.log("[Map] marker library loaded");
 
       const container = containerRef.current;
-      console.log("[Map] container size:", container?.offsetWidth, "x", container?.offsetHeight);
-
       const map = new Map(container, {
         zoom,
         center,
         mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_ID ?? "DEMO_MAP_ID",
         gestureHandling: "greedy",
+        mapTypeId: satellite ? "satellite" : "roadmap",
       });
-      console.log("[Map] Map instance created:", !!map);
 
-      (window as any).google.maps.event.trigger(map, "resize");
-
+      g.maps.event.trigger(map, "resize");
       mapRef.current = map;
       infoWindowRef.current = new InfoWindow();
       AdvancedRef.current = AdvancedMarkerElement;
 
       if (allowCustomPins) {
-        const infoWindow = new InfoWindow();
         map.addListener("click", (e: any) => {
           const latLng = e.latLng;
-          const marker = new AdvancedMarkerElement({ map, position: latLng, title: "Custom pin" });
-          marker.addListener("gmp-click", () => {
-            infoWindow.setContent(
-              `<p style="font-size:12px">Custom pin<br/>${latLng.lat().toFixed(5)}, ${latLng.lng().toFixed(5)}</p>`
-            );
-            infoWindow.open(map, marker);
-          });
+          new AdvancedMarkerElement({ map, position: latLng, title: "Custom pin" });
         });
       }
 
-      const pins = await fetchMapPins();
-      setPins(pins);
-      placePins(map, AdvancedMarkerElement, pins);
+      const fetched = await fetchMapPins();
+      setPins(fetched);
     }
 
-    function placePins(map: any, AdvancedMarkerElement: any, pins: MapPin[]) {
-      // Clear old pins
-      markersRef.current.forEach((m: any) => m.map = null);
-      markersRef.current = [];
-      const infoWindow = infoWindowRef.current;
-
-      pins.forEach((pin) => {
-        try {
-          const marker = new AdvancedMarkerElement({
-            map,
-            position: { lat: pin.lat, lng: pin.lng },
-            title: pin.title,
-            content: buildMarkerElement(pin),
-          });
-          marker.addListener("gmp-click", () => {
-            infoWindow.setContent(buildInfoContent(pin));
-            infoWindow.open(map, marker);
-          });
-          markersRef.current.push(marker);
-        } catch (err: any) {
-          console.warn(`[Map] skipping pin ${pin.id}:`, err.message);
-        }
-      });
-    }
-
-    // Injects the official Maps JS API bootstrap loader (same pattern as the
-    // standalone HTML version). importLibrary() is available immediately after
-    // the inline script runs — the actual library bytes load lazily on demand.
     function loadScript(): Promise<void> {
       return new Promise((resolve, reject) => {
-        // Already bootstrapped from a previous render
         if ((window as any).google?.maps?.importLibrary) {
           resolve();
           return;
         }
-
         if (document.getElementById(SCRIPT_ID)) {
-          // Bootstrap injected but not yet resolved — wait for it
           const poll = setInterval(() => {
             if ((window as any).google?.maps?.importLibrary) {
               clearInterval(poll);
@@ -297,8 +385,6 @@ export default function GoogleMap({
           return;
         }
 
-        // Inline bootstrap — mirrors the snippet from the Google Maps docs.
-        // Sets up window.google.maps.importLibrary without blocking the page.
         const bootstrap = document.createElement("script");
         bootstrap.id = SCRIPT_ID;
         bootstrap.textContent = `
@@ -320,46 +406,155 @@ export default function GoogleMap({
                 }));
             d[l]?console.warn(p+" only loads once. Ignoring:",g):
               d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))
-          })({key:"${apiKey}",v:"weekly"});
+          })({key:"${apiKey}",v:"weekly",libraries:"maps,marker,visualization"});
         `;
-
         bootstrap.onerror = () => reject(new Error("Maps bootstrap failed"));
         document.head.appendChild(bootstrap);
-
-        // importLibrary is synchronously available right after the inline script runs
         resolve();
       });
     }
 
     loadScript()
       .then(initMap)
-      .catch(async (err) => {
-        console.error("Google Maps failed to load:", err.message);
+      .catch(async () => {
         setError("Map could not be loaded. Check your API key.");
         setUseFallback(true);
         setPins(await fetchMapPins());
       });
-      
-    // Polling for live pins
+
     const interval = setInterval(async () => {
       try {
-        const newPins = await fetchMapPins();
-        setPins(newPins);
-        if (!useFallback && mapRef.current && AdvancedRef.current) {
-          placePins(mapRef.current, AdvancedRef.current, newPins);
-        }
-      } catch (e) {}
+        const next = await fetchMapPins();
+        setPins(next);
+      } catch { /* noop */ }
     }, 10000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
+  // Switch map type when `satellite` flips.
+  useEffect(() => {
+    if (mapRef.current && (window as any).google?.maps) {
+      mapRef.current.setMapTypeId(satellite ? "satellite" : "roadmap");
+    }
+  }, [satellite]);
+
+  // Render camera pins from /api/locations.
+  useEffect(() => {
+    if (useFallback) return;
+    const map = mapRef.current;
+    const Advanced = AdvancedRef.current;
+    if (!map || !Advanced) return;
+
+    cameraMarkersRef.current.forEach((m) => (m.map = null));
+    cameraMarkersRef.current = [];
+
+    if (!showCameras) return;
+
+    const infoWindow = infoWindowRef.current;
+    pins.forEach((pin) => {
+      try {
+        const marker = new Advanced({
+          map,
+          position: { lat: pin.lat, lng: pin.lng },
+          title: pin.title,
+          content: buildMarkerElement(getPinStyle(pin), pin.severity === "critical"),
+        });
+        marker.addListener("gmp-click", () => {
+          infoWindow.setContent(buildPinInfo(pin));
+          infoWindow.open(map, marker);
+        });
+        cameraMarkersRef.current.push(marker);
+      } catch { /* noop */ }
+    });
+  }, [pins, showCameras, useFallback]);
+
+  // Render incident markers (live alerts).
+  useEffect(() => {
+    if (useFallback) return;
+    const map = mapRef.current;
+    const Advanced = AdvancedRef.current;
+    if (!map || !Advanced) return;
+
+    incidentMarkersRef.current.forEach((m) => (m.map = null));
+    incidentMarkersRef.current = [];
+
+    if (!showIncidents) return;
+
+    const infoWindow = infoWindowRef.current;
+    incidents.forEach((incident) => {
+      const ll = pointLatLng(incident);
+      if (!ll) return;
+      const severity = String(incident.severity || "informational").toLowerCase();
+      const style = getIncidentStyle(severity);
+      try {
+        const marker = new Advanced({
+          map,
+          position: ll,
+          title: incident.title ?? "Active incident",
+          content: buildMarkerElement(style, severity === "critical" || severity === "emergency"),
+        });
+        marker.addListener("gmp-click", () => {
+          infoWindow.setContent(buildIncidentInfo(incident));
+          infoWindow.open(map, marker);
+        });
+        incidentMarkersRef.current.push(marker);
+      } catch { /* noop */ }
+    });
+  }, [incidents, showIncidents, useFallback]);
+
+  // Render heatmap layer (visualization library).
+  useEffect(() => {
+    if (useFallback) return;
+    const map = mapRef.current;
+    const g = (window as any).google;
+    if (!map || !g?.maps) return;
+
+    (async () => {
+      if (heatLayerRef.current) {
+        heatLayerRef.current.setMap(null);
+        heatLayerRef.current = null;
+      }
+      if (!showHeatmap || !heatmap.length) return;
+
+      try {
+        const viz = await g.maps.importLibrary("visualization");
+        const data = heatmap
+          .map((p) => {
+            const ll = pointLatLng(p);
+            if (!ll) return null;
+            const w = Math.max(0.15, Math.min(1, p.weight ?? (p.congestionScore ?? 0) / 1));
+            return { location: new g.maps.LatLng(ll.lat, ll.lng), weight: w };
+          })
+          .filter(Boolean);
+        if (!data.length) return;
+        heatLayerRef.current = new viz.HeatmapLayer({
+          data,
+          map,
+          radius: 50,
+          opacity: 0.75,
+        });
+      } catch { /* noop */ }
+    })();
+  }, [heatmap, showHeatmap, useFallback]);
+
+  // Memoized incidents/heatmap for fallback view (avoid re-renders).
+  const fallbackInc = useMemo(() => incidents, [incidents]);
+  const fallbackHeat = useMemo(() => heatmap, [heatmap]);
+
   return (
     <>
-      {/* ref goes directly on the element that receives className so there are
-          no extra wrappers conflicting with position:absolute / inset:0 */}
       <div ref={containerRef} className={className} />
-      {useFallback && <LocalFallbackMap pins={pins} />}
+      {useFallback && (
+        <LocalFallbackMap
+          pins={pins}
+          incidents={fallbackInc}
+          heatmap={fallbackHeat}
+          showIncidents={showIncidents}
+          showHeatmap={showHeatmap}
+          showCameras={showCameras}
+        />
+      )}
       {error && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-error-container border border-error/30 text-on-error-container text-[11px] px-3 py-1.5 rounded-lg flex items-center gap-1.5">
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>warning</span>
