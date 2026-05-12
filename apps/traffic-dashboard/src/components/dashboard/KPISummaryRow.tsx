@@ -2,28 +2,52 @@
 
 /**
  * REQ-FR-002: Summary panel — total active incidents, average network speed,
- * congestion level (Low/Moderate/High/Critical), and active alert count.
+ * congestion level (Low/Moderate/High/Severe), and active alert count.
  */
 import { useEffect, useState } from "react";
 import { getSocket, type TrafficMetric } from "@/lib/socket";
 import { useCurrentCongestion, useDashboardSummary } from "@/lib/hooks/useB3Backend";
 
-const LEVEL_ORDER = { LOW: 0, MEDIUM: 1, HIGH: 2, CRITICAL: 3 } as const;
+type CongestionLevel = TrafficMetric["congestionLevel"];
+
+const LEVEL_ORDER: Record<CongestionLevel, number> = {
+  LOW: 0,
+  MODERATE: 1,
+  HIGH: 2,
+  SEVERE: 3,
+};
 
 // REQ-DR-001: Standard four-tier display labels
-const LEVEL_LABEL: Record<string, string> = {
+const LEVEL_LABEL: Record<CongestionLevel, string> = {
   LOW:      "Low",
-  MEDIUM:   "Moderate",
+  MODERATE: "Moderate",
   HIGH:     "High",
-  CRITICAL: "Critical",
+  SEVERE:   "Severe",
 };
 
-const LEVEL_CLASS: Record<string, string> = {
+const LEVEL_CLASS: Record<CongestionLevel, string> = {
   LOW:      "text-secondary",
-  MEDIUM:   "text-tertiary",
+  MODERATE: "text-tertiary",
   HIGH:     "text-error",
-  CRITICAL: "text-error",
+  SEVERE:   "text-error",
 };
+
+function normalizeCongestionLevel(level?: string | null): CongestionLevel | undefined {
+  switch (level?.toUpperCase()) {
+    case "LOW":
+      return "LOW";
+    case "MEDIUM":
+    case "MODERATE":
+      return "MODERATE";
+    case "HIGH":
+      return "HIGH";
+    case "CRITICAL":
+    case "SEVERE":
+      return "SEVERE";
+    default:
+      return undefined;
+  }
+}
 
 function deriveStats(metrics: TrafficMetric[]) {
   if (!metrics.length) return null;
@@ -31,7 +55,7 @@ function deriveStats(metrics: TrafficMetric[]) {
   const maxLevel = metrics.reduce<TrafficMetric["congestionLevel"]>((max, m) =>
     LEVEL_ORDER[m.congestionLevel] > LEVEL_ORDER[max] ? m.congestionLevel : max, "LOW");
   const incidents = metrics.filter(
-    (m) => m.congestionLevel === "HIGH" || m.congestionLevel === "CRITICAL"
+    (m) => m.congestionLevel === "HIGH" || m.congestionLevel === "SEVERE"
   ).length;
   // REQ-DR-004: detect stale data (>30s since last windowEnd)
   const latest = metrics
@@ -72,11 +96,7 @@ export default function KPISummaryRow() {
 
   const metrics = socketMetrics.length ? socketMetrics : initialMetrics ?? [];
   const s = deriveStats(metrics);
-  const summaryLevel = summary?.overall_congestion_level === "MODERATE"
-    ? "MEDIUM"
-    : summary?.overall_congestion_level === "SEVERE"
-      ? "CRITICAL"
-      : summary?.overall_congestion_level;
+  const summaryLevel = normalizeCongestionLevel(summary?.overall_congestion_level);
   const activeIncidents = summary ? summary.total_incidents_24h : s?.incidents;
   const averageSpeed = summary ? summary.avg_speed_kmh : s?.avgSpeed;
   const congestionLevel = summaryLevel || s?.maxLevel;
