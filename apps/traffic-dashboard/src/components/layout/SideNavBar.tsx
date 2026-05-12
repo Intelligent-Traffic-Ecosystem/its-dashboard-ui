@@ -23,10 +23,19 @@ export default function SideNavBar() {
     }
 
     try {
-      await fetch(`${backendUrl}/api/auth/logout`, {
+      const response = await fetch(`${backendUrl}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.logoutUrl) {
+          window.location.href = data.logoutUrl;
+          return;
+        }
+      }
+
       window.location.href = loginAppUrl;
     } catch (err) {
       console.error("Logout error", err);
