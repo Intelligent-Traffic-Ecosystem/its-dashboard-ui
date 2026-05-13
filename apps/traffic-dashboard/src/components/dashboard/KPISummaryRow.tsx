@@ -66,12 +66,13 @@ function deriveStats(metrics: TrafficMetric[]) {
   const maxLevel = deduped.reduce<TrafficMetric["congestionLevel"]>((max, m) =>
     LEVEL_ORDER[m.congestionLevel] > LEVEL_ORDER[max] ? m.congestionLevel : max, "LOW");
 
-  // Cross-validate: only count a camera as an incident when the level label is
-  // corroborated by the numeric score. Prevents label/score mismatches from the seeder.
-  const incidents = deduped.filter((m) =>
+  // Cross-validate: an incident exists when at least one camera has a level label
+  // corroborated by its numeric score. Report as 0 or 1 — not a per-camera count.
+  const hasIncident = deduped.some((m) =>
     (m.congestionLevel === "SEVERE" && m.congestionScore >= 0.80) ||
     (m.congestionLevel === "HIGH"   && m.congestionScore >= 0.55)
-  ).length;
+  );
+  const incidents = hasIncident ? 1 : 0;
 
   // REQ-DR-004: detect stale data (>30s since last windowEnd)
   const latest = deduped
