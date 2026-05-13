@@ -1,7 +1,7 @@
 "use client";
 
 import { useAnalyticsTrends } from "@/lib/hooks/useB3Backend";
-import { useMemo } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 
 interface PeakHourChartProps {
     cameraId: string;
@@ -9,16 +9,27 @@ interface PeakHourChartProps {
     to: string;
 }
 
-type TrendPoint = {
-    timestamp: string;
-    label: string;
-    vehicleCount: number;
-};
+type TrendPoint = { timestamp: string; label: string; vehicleCount: number };
 
-function buildPath(points: Array<{ x: number; y: number }>) {
-    if (points.length === 0) return "";
-    if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-    return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+function clamp(v: number, lo: number, hi: number) {
+    return Math.min(hi, Math.max(lo, v));
+}
+
+function smoothPath(pts: Array<{ x: number; y: number }>, t = 0.3): string {
+    if (pts.length < 2) return pts.length === 1 ? `M ${pts[0].x} ${pts[0].y}` : "";
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[Math.max(0, i - 1)];
+        const p1 = pts[i];
+        const p2 = pts[i + 1];
+        const p3 = pts[Math.min(pts.length - 1, i + 2)];
+        const cp1x = p1.x + (p2.x - p0.x) * t;
+        const cp1y = p1.y + (p2.y - p0.y) * t;
+        const cp2x = p2.x - (p3.x - p1.x) * t;
+        const cp2y = p2.y - (p3.y - p1.y) * t;
+        d += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+    }
+    return d;
 }
 
 function formatLabel(timestamp: string, rangeMs: number) {
@@ -26,149 +37,201 @@ function formatLabel(timestamp: string, rangeMs: number) {
     if (rangeMs <= 24 * 60 * 60 * 1000) {
         return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     }
-
     return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
+const LINE_COLOR = "#34d399"; // emerald-400
+const PAD_TOP = 8;
+const PAD_BOTTOM = 4;
+
 export default function PeakHourChart({ cameraId, from, to }: PeakHourChartProps) {
     const { data: trends, loading, error } = useAnalyticsTrends(cameraId, from, to);
+    const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
 
     const rangeMs = useMemo(() => Math.max(1, new Date(to).getTime() - new Date(from).getTime()), [from, to]);
 
-    const chartData: TrendPoint[] = useMemo(() => {
+    const chartData = useMemo((): TrendPoint[] => {
         if (!trends?.series?.length) return [];
-
-        return trends.series.map((entry) => ({
-            timestamp: entry.timestamp,
-            label: formatLabel(entry.timestamp, rangeMs),
-            vehicleCount: entry.vehicleCount ?? 0,
+        return trends.series.map((e) => ({
+            timestamp: e.timestamp,
+            label: formatLabel(e.timestamp, rangeMs),
+            vehicleCount: e.vehicleCount ?? 0,
         }));
     }, [rangeMs, trends]);
 
+    const maxValue = Math.max(1, ...chartData.map((p) => p.vehicleCount));
+    // Round Y-axis max up to a clean number
+    const yMax = Math.ceil(maxValue / 10) * 10;
+    const yTicks = [0, Math.round(yMax * 0.25), Math.round(yMax * 0.5), Math.round(yMax * 0.75), yMax];
+
+    const toY = (v: number) => PAD_TOP + (1 - v / yMax) * (100 - PAD_TOP - PAD_BOTTOM);
+    const toX = (i: number) => chartData.length <= 1 ? 50 : (i / (chartData.length - 1)) * 100;
+
+    const svgPoints = chartData.map((p, i) => ({ x: toX(i), y: toY(p.vehicleCount) }));
+    const linePath = smoothPath(svgPoints);
+    const firstX = svgPoints[0]?.x ?? 0;
+    const lastX = svgPoints[svgPoints.length - 1]?.x ?? 100;
+    const bottomY = 100 - PAD_BOTTOM;
+    const areaPath = linePath ? `${linePath} L ${lastX},${bottomY} L ${firstX},${bottomY} Z` : "";
+
+    const hovered = hoveredIdx !== null ? chartData[hoveredIdx] : null;
+    const hoveredSvgX = hoveredIdx !== null ? svgPoints[hoveredIdx]?.x : null;
+
+    const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+        if (!svgRef.current || !svgPoints.length) return;
+        const rect = svgRef.current.getBoundingClientRect();
+        const pct = ((e.clientX - rect.left) / rect.width) * 100;
+        let nearest = 0, minDist = Infinity;
+        svgPoints.forEach((p, i) => {
+            const dist = Math.abs(p.x - pct);
+            if (dist < minDist) { minDist = dist; nearest = i; }
+        });
+        setHoveredIdx(nearest);
+    };
+
     const latest = chartData[chartData.length - 1];
-    const previous = chartData[chartData.length - 2] ?? latest;
-    const delta = latest && previous ? latest.vehicleCount - previous.vehicleCount : 0;
-    const maxValue = Math.max(1, ...chartData.map((point) => point.vehicleCount));
-    const svgPoints = chartData.map((point, index) => {
-        const x = chartData.length === 1 ? 0 : (index / (chartData.length - 1)) * 100;
-        const y = 100 - (point.vehicleCount / maxValue) * 76 - 12;
-        return { x, y };
-    });
-    const linePath = buildPath(svgPoints);
-    const areaPath = `${linePath} L 100 100 L 0 100 Z`;
+    const xLabelIndices = new Set([0, Math.floor((chartData.length - 1) / 2), chartData.length - 1]);
+
+    const shell = (children: ReactNode) => (
+        <div className="col-span-4 bg-surface-container border border-white/10 p-lg rounded-xl flex flex-col h-100">
+            <div className="mb-md">
+                <h3 className="font-title-sm text-title-sm text-on-surface font-semibold">Traffic Volume Trend</h3>
+                <p className="text-[11px] text-on-surface-variant">Vehicle count over time</p>
+            </div>
+            {children}
+        </div>
+    );
 
     if (loading) {
-        return (
-            <div className="col-span-4 bg-surface-container border border-white/10 p-lg rounded-xl flex flex-col h-100">
-                <div className="mb-xl">
-                    <h3 className="font-title-sm text-title-sm text-on-surface font-semibold">
-                        Traffic Volume Trend
-                    </h3>
-                    <p className="text-[11px] text-on-surface-variant">Vehicle count over time as a continuous line</p>
-                </div>
-                <div className="flex-1 flex items-center justify-center">
-                    <span className="text-on-surface-variant">Loading trend data...</span>
-                </div>
+        return shell(
+            <div className="flex-1 flex items-center justify-center">
+                <span className="text-on-surface-variant text-sm">Loading trend data…</span>
             </div>
         );
     }
 
     if (error || !chartData.length) {
-        return (
-            <div className="col-span-4 bg-surface-container border border-white/10 p-lg rounded-xl flex flex-col h-100">
-                <div className="mb-xl">
-                    <h3 className="font-title-sm text-title-sm text-on-surface font-semibold">
-                        Traffic Volume Trend
-                    </h3>
-                    <p className="text-[11px] text-on-surface-variant">Vehicle count over time as a continuous line</p>
-                </div>
-                <div className="flex-1 flex items-center justify-center">
-                    <span className="text-error">Unable to load trend data</span>
-                </div>
+        return shell(
+            <div className="flex-1 flex items-center justify-center">
+                <span className="text-error text-sm">Unable to load trend data</span>
             </div>
         );
     }
 
-    return (
-        <div className="col-span-4 bg-surface-container border border-white/10 p-lg rounded-xl flex flex-col h-100">
-            <div className="mb-xl flex items-start justify-between gap-md">
-                <div>
-                    <h3 className="font-title-sm text-title-sm text-on-surface font-semibold">
-                        Traffic Volume Trend
-                    </h3>
-                    <p className="text-[11px] text-on-surface-variant">Continuous vehicle-count line. Hover a point for exact values.</p>
+    return shell(
+        <>
+            {/* Latest value badge */}
+            {latest && (
+                <div className="flex items-center gap-md mb-md flex-wrap">
+                    <span className="flex items-center gap-xs text-xs text-on-surface-variant">
+                        <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: LINE_COLOR }} />
+                        Vehicles
+                    </span>
+                    <span className="text-xs font-semibold" style={{ color: LINE_COLOR }}>
+                        {latest.vehicleCount} at {latest.label}
+                    </span>
                 </div>
-                {latest && (
-                    <div className="text-right">
-                        <div className="text-[10px] text-on-surface-variant uppercase font-bold">Latest</div>
-                        <div className="text-sm font-semibold text-on-surface">{latest.vehicleCount} vehicles</div>
-                    </div>
-                )}
-            </div>
+            )}
 
-            <div className="flex-1 relative rounded-xl bg-surface-container-low border border-white/5 overflow-hidden">
-                <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    {[20, 40, 60, 80].map((line) => (
-                        <line key={line} x1="0" x2="100" y1={line} y2={line} className="stroke-white/8" strokeWidth="0.5" />
+            <div className="flex-1 flex gap-2 min-h-0">
+                {/* Y-axis labels */}
+                <div className="flex flex-col justify-between py-2 pr-1 text-right shrink-0">
+                    {[...yTicks].reverse().map((tick) => (
+                        <span key={tick} className="text-[10px] text-on-surface-variant font-mono-data leading-none">
+                            {tick >= 1000 ? `${(tick / 1000).toFixed(1)}k` : tick}
+                        </span>
                     ))}
-
-                    {linePath && <path d={areaPath} className="fill-primary/15" />}
-                    {linePath && (
-                        <path
-                            d={linePath}
-                            fill="none"
-                            className="stroke-primary"
-                            strokeWidth="1.8"
-                            strokeLinejoin="round"
-                            strokeLinecap="round"
-                            style={{ filter: "drop-shadow(0 0 4px rgba(0,0,0,0.12))" }}
-                        />
-                    )}
-
-                    {svgPoints.map((point, index) => {
-                        const isLatest = index === svgPoints.length - 1;
-                        return (
-                            <circle
-                                key={`${chartData[index].timestamp}-${index}`}
-                                cx={point.x}
-                                cy={point.y}
-                                r={isLatest ? 1.4 : 0.85}
-                                className={isLatest ? "fill-primary" : "fill-white/70"}
-                            >
-                                <title>{`${chartData[index].label}: ${chartData[index].vehicleCount} vehicles`}</title>
-                            </circle>
-                        );
-                    })}
-                </svg>
-
-                <div className="absolute inset-x-0 bottom-0 flex justify-between px-md py-sm text-[10px] text-on-surface-variant font-mono-data uppercase">
-                    {chartData.map((point, index) => {
-                        const shouldShow =
-                            index === 0 ||
-                            index === chartData.length - 1 ||
-                            index === Math.floor(chartData.length / 2) ||
-                            (chartData.length > 10 && index % Math.ceil(chartData.length / 4) === 0);
-
-                        if (!shouldShow) {
-                            return <span key={`${point.timestamp}-${index}`} className="opacity-0">.</span>;
-                        }
-
-                        return <span key={`${point.timestamp}-${index}`}>{point.label}</span>;
-                    })}
                 </div>
 
-                {latest && (
-                    <div className="absolute top-3 right-3 bg-surface-container/90 border border-white/10 rounded-lg px-3 py-2 shadow-md">
-                        <div className="text-[10px] text-on-surface-variant uppercase font-bold">Latest</div>
-                        <div className="text-sm font-semibold text-primary">{latest.vehicleCount} vehicles</div>
-                        {delta !== 0 && (
-                            <div className={`text-[10px] font-semibold ${delta > 0 ? "text-error" : "text-success"}`}>
-                                {delta > 0 ? "+" : ""}{delta} vs previous point
+                {/* Chart + X-axis */}
+                <div className="flex-1 flex flex-col min-w-0">
+                    <div className="flex-1 relative rounded-lg bg-surface-container-low border border-white/5 overflow-hidden">
+                        <svg
+                            ref={svgRef}
+                            className="absolute inset-0 h-full w-full cursor-crosshair"
+                            viewBox="0 0 100 100"
+                            preserveAspectRatio="none"
+                            aria-hidden="true"
+                            onMouseMove={handleMouseMove}
+                            onMouseLeave={() => setHoveredIdx(null)}
+                        >
+                            <defs>
+                                <linearGradient id="phAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={LINE_COLOR} stopOpacity="0.28" />
+                                    <stop offset="75%" stopColor={LINE_COLOR} stopOpacity="0.05" />
+                                    <stop offset="100%" stopColor={LINE_COLOR} stopOpacity="0" />
+                                </linearGradient>
+                            </defs>
+
+                            {/* Grid lines */}
+                            {yTicks.map((tick) => (
+                                <line key={tick}
+                                    x1="0" x2="100"
+                                    y1={toY(tick)} y2={toY(tick)}
+                                    stroke="rgba(255,255,255,0.08)" strokeWidth="0.5"
+                                />
+                            ))}
+
+                            {/* Area fill */}
+                            {areaPath && <path d={areaPath} fill="url(#phAreaGrad)" />}
+
+                            {/* Smooth line */}
+                            {linePath && (
+                                <path d={linePath} fill="none"
+                                    stroke={LINE_COLOR} strokeWidth="1.8"
+                                    strokeLinejoin="round" strokeLinecap="round"
+                                />
+                            )}
+
+                            {/* Hover cursor */}
+                            {hoveredSvgX !== null && (
+                                <line
+                                    x1={hoveredSvgX} x2={hoveredSvgX}
+                                    y1={PAD_TOP} y2={bottomY}
+                                    stroke="rgba(255,255,255,0.25)" strokeWidth="0.7"
+                                    strokeDasharray="2,1.5"
+                                />
+                            )}
+                        </svg>
+
+                        {/* Hover tooltip */}
+                        {hovered && hoveredSvgX !== null && (
+                            <div
+                                className="absolute pointer-events-none bg-surface-container border border-white/15 rounded-lg px-3 py-2 shadow-lg z-10 whitespace-nowrap"
+                                style={{
+                                    left: `${clamp(hoveredSvgX, 8, 88)}%`,
+                                    top: "10px",
+                                    transform: "translateX(-50%)",
+                                }}
+                            >
+                                <div className="text-[9px] text-on-surface-variant uppercase font-bold mb-0.5 tracking-wide">
+                                    {hovered.label}
+                                </div>
+                                <div className="text-sm font-semibold" style={{ color: LINE_COLOR }}>
+                                    {hovered.vehicleCount} vehicles
+                                </div>
                             </div>
                         )}
                     </div>
-                )}
+
+                    {/* X-axis labels */}
+                    <div className="relative h-5 mt-1">
+                        {chartData.map((point, index) => {
+                            if (!xLabelIndices.has(index)) return null;
+                            return (
+                                <span
+                                    key={`xl-${index}`}
+                                    className="absolute text-[10px] text-on-surface-variant font-mono-data"
+                                    style={{ left: `${toX(index)}%`, transform: "translateX(-50%)" }}
+                                >
+                                    {point.label}
+                                </span>
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
