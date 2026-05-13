@@ -1,6 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+
+const CAMERA_ROADS: Record<string, string> = {
+    cam1: "Galle Road", cam2: "High Level Road", cam3: "Kandy Road",
+    cam4: "Nugegoda Junction", cam5: "Rajagiriya", cam6: "Borella Junction",
+    cam7: "Maradana", cam8: "Pettah Bus Terminal",
+};
 import KPIRow from "@/components/analytics/KPIRow";
 import CongestionIndexChart from "@/components/analytics/CongestionIndexChart";
 import PeakHourChart from "@/components/analytics/PeakHourChart";
@@ -95,7 +101,7 @@ export default function AnalyticsPage() {
                         {cameras.length === 0 && <option value={effectiveCamera}>{effectiveCamera}</option>}
                         {cameras.map((cameraId) => (
                             <option key={cameraId} value={cameraId}>
-                                {cameraId}
+                                {cameraId}{CAMERA_ROADS[cameraId] ? ` — ${CAMERA_ROADS[cameraId]}` : ""}
                             </option>
                         ))}
                     </select>
