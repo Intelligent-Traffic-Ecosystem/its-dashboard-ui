@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAlertHistory, formatAlertTime } from "@/lib/hooks/useB3Backend";
 import type { AlertHistoryFilters } from "@/lib/b3-backend";
 
@@ -23,9 +24,9 @@ export default function AlertHistory({ filters }: AlertHistoryProps) {
         <span className="material-symbols-outlined mr-2 text-outline">history</span>
         Recent Acknowledged (Past 2 Hours)
       </h3>
-      <a href="/alerts/archive" className="text-primary text-xs font-bold uppercase hover:opacity-80">
+      <Link href="/alerts/archive" className="text-primary text-xs font-bold uppercase hover:opacity-80">
         View Full Archive
-      </a>
+      </Link>
     </div>
   );
 

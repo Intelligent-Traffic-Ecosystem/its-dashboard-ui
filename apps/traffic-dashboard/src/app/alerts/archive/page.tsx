@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { AlertHistoryFilters } from "@/lib/b3-backend";
 import { b3Backend } from "@/lib/b3-backend";
 import { formatAlertTime, useAlertHistory, useCurrentCongestion } from "@/lib/hooks/useB3Backend";
@@ -91,9 +92,9 @@ export default function AlertArchivePage() {
     <main className="ml-64 p-margin pt-sm min-h-[calc(100vh-3.5rem)]">
       <header className="flex items-end justify-between gap-lg mb-lg flex-wrap">
         <div>
-          <a href="/alerts" className="text-xs font-bold uppercase text-primary hover:opacity-80">
+          <Link href="/alerts" className="text-xs font-bold uppercase text-primary hover:opacity-80">
             Back to alerts
-          </a>
+          </Link>
           <h1 className="font-display-lg text-display-lg text-on-surface font-semibold tracking-[-0.02em] mt-2">
             Alert Archive
           </h1>
