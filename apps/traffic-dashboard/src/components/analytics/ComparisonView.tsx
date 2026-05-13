@@ -113,7 +113,7 @@ export default function ComparisonView({ onClose }: Props) {
                         <div className="space-y-md">
                             <div>
                                 <div className="text-[10px] text-on-surface-variant uppercase font-bold">Avg Congestion Score</div>
-                                <div className="font-bold text-2xl text-primary">{comparisonMetrics.a.avg_congestion_score.toFixed(1)}</div>
+                                <div className="font-bold text-2xl text-primary">{(comparisonMetrics.a.avg_congestion_score * 100).toFixed(1)}</div>
                             </div>
                             <div>
                                 <div className="text-[10px] text-on-surface-variant uppercase font-bold">Top Segment</div>
@@ -137,7 +137,7 @@ export default function ComparisonView({ onClose }: Props) {
                         <div className="space-y-md">
                             <div>
                                 <div className="text-[10px] text-on-surface-variant uppercase font-bold">Avg Congestion Score</div>
-                                <div className="font-bold text-2xl text-secondary">{comparisonMetrics.b.avg_congestion_score.toFixed(1)}</div>
+                                <div className="font-bold text-2xl text-secondary">{(comparisonMetrics.b.avg_congestion_score * 100).toFixed(1)}</div>
                             </div>
                             <div>
                                 <div className="text-[10px] text-on-surface-variant uppercase font-bold">Top Segment</div>

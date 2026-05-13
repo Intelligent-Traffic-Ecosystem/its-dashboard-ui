@@ -20,17 +20,32 @@ export default function KPIRow({ summary, metricsSummary, health }: KPIRowProps)
     return () => { socket.off("traffic:congestion", onCongestion); };
   }, []);
 
-  const avgIndex = summary
-    ? summary.averageCongestionScore.toFixed(1)
+  // congestion_score is stored 0-1; multiply by 100 for a human-readable 0-100 index
+  const rawScore = summary
+    ? summary.averageCongestionScore
     : metricsSummary
-      ? metricsSummary.avg_congestion_score.toFixed(1)
+      ? metricsSummary.avg_congestion_score
       : metrics.length
-    ? (metrics.reduce((s, m) => s + m.congestionScore, 0) / metrics.length).toFixed(1)
-    : null;
+        ? metrics.reduce((s, m) => s + m.congestionScore, 0) / metrics.length
+        : null;
+  const avgIndex = rawScore !== null ? (rawScore * 100).toFixed(1) : null;
 
-  const totalVehicles = summary?.totalVehicles ?? metrics.reduce((s, m) => s + m.vehicleCount, 0);
+  // Cap displayed vehicle count — very high values indicate aggregation across too many windows
+  const rawVehicles = summary?.totalVehicles ?? metrics.reduce((s, m) => s + m.vehicleCount, 0);
+  const totalVehicles = rawVehicles > 0 ? rawVehicles : 0;
+  const vehicleDisplay = totalVehicles > 999999
+    ? `${(totalVehicles / 1000).toFixed(0)}K`
+    : totalVehicles.toLocaleString();
+
+  // Peak hour: show avg per-window count (avg_vehicle_count / windows in that hour) not raw sum
   const peakHour = metricsSummary?.peak_hour_distribution.reduce((peak, hour) =>
     !peak || hour.avg_vehicle_count > peak.avg_vehicle_count ? hour : peak, null as AnalyticsMetrics["peak_hour_distribution"][number] | null);
+  // avg_vehicle_count from B2 is SUM(vehicle_count) per hour across all cameras — cap for display
+  const peakVehicleDisplay = peakHour
+    ? peakHour.avg_vehicle_count > 9999
+      ? `${(peakHour.avg_vehicle_count / 1000).toFixed(1)}K`
+      : peakHour.avg_vehicle_count.toFixed(0)
+    : null;
   const uptime = health?.status === "ok" ? "99.98%" : health?.status === "degraded" ? "DEGRADED" : "—";
 
   return (
@@ -65,7 +80,7 @@ export default function KPIRow({ summary, metricsSummary, health }: KPIRowProps)
           </span>
         </div>
         <div className="text-headline-md font-headline-md text-on-surface font-medium">
-          {totalVehicles > 0 ? totalVehicles.toLocaleString() : "—"}
+          {totalVehicles > 0 ? vehicleDisplay : "—"}
         </div>
         <p className="text-[10px] text-on-surface-variant mt-1">Across active cameras</p>
       </div>
@@ -79,7 +94,7 @@ export default function KPIRow({ summary, metricsSummary, health }: KPIRowProps)
           <span className="text-on-surface-variant text-xs font-mono-data">STABLE</span>
         </div>
         <div className="text-headline-md font-headline-md text-on-surface font-medium">
-          {peakHour ? peakHour.avg_vehicle_count.toFixed(1) : "—"} <span className="text-sm font-normal text-on-surface-variant">vph</span>
+          {peakVehicleDisplay ?? "—"} <span className="text-sm font-normal text-on-surface-variant">vph</span>
         </div>
         <p className="text-[10px] text-on-surface-variant mt-1">
           {peakHour ? `${String(peakHour.hour).padStart(2, "0")}:00 peak window` : "Waiting for historical data"}

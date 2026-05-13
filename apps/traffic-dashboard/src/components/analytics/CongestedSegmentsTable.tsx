@@ -111,10 +111,10 @@ export default function CongestedSegmentsTable({ metricsSummary }: CongestedSegm
             {hasApiSegments ? (
               metricsSummary!.top_segments.map((segment) => {
                 const live = liveScoreMap[segment.camera_id];
-                // avg_congestion_score is already 0-100; live.congestionScore is 0-1 scale
-                const score = live
-                  ? Math.round(live.congestionScore * 100)
-                  : Math.round(segment.avg_congestion_score);
+                // Both avg_congestion_score and live.congestionScore are 0-1 scale; multiply for display
+                const score = Math.round(
+                  (live ? live.congestionScore : segment.avg_congestion_score) * 100
+                );
                 const style = scoreToLevelStyle(score);
                 const speedKmh = live ? live.averageSpeedKmh : null;
                 const stoppedRatio = live ? live.stoppedRatio : null;
