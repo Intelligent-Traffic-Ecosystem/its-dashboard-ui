@@ -12,22 +12,23 @@ const LEVEL_STYLE = {
   LOW:      { bar: "bg-secondary-container", badge: "bg-surface-container-highest text-on-surface-variant",   label: "LOW"       },
 } as const;
 
-// Static road names for mock cameras — used when CameraRegistry has no entry
+// Static road names for mock cameras — used when CameraRegistry has no entry.
+// Keys cover both bare ("cam1") and zero-padded underscore ("cam_01") formats.
 const CAMERA_ROADS: Record<string, string> = {
-  cam1: "Galle Road",
-  cam2: "High Level Road",
-  cam3: "Kandy Road",
-  cam4: "Nugegoda Junction",
-  cam5: "Rajagiriya",
-  cam6: "Borella Junction",
-  cam7: "Maradana",
-  cam8: "Pettah Bus Terminal",
+  cam1: "Galle Road",     cam_01: "Galle Road",
+  cam2: "High Level Road", cam_02: "High Level Road",
+  cam3: "Kandy Road",      cam_03: "Kandy Road",
+  cam4: "Nugegoda Junction", cam_04: "Nugegoda Junction",
+  cam5: "Rajagiriya",      cam_05: "Rajagiriya",
+  cam6: "Borella Junction", cam_06: "Borella Junction",
+  cam7: "Maradana",        cam_07: "Maradana",
+  cam8: "Pettah Bus Terminal", cam_08: "Pettah Bus Terminal",
 };
 
 /** Returns a human-readable location label for a camera / segment. */
 function getCameraLocation(cameraId: string, roadSegment?: string | null): string {
   // If the API gave a real road name (not just the raw cam ID) prefer it
-  if (roadSegment && !/^cam\d+$/i.test(roadSegment)) return roadSegment;
+  if (roadSegment && !/^cam[_]?\d+$/i.test(roadSegment)) return roadSegment;
   return CAMERA_ROADS[cameraId] ?? cameraId;
 }
 
@@ -47,24 +48,35 @@ export default function CongestedSegmentsTable({ metricsSummary }: CongestedSegm
   const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Keep a live score map keyed by cameraId, updated by WebSocket
+  // Keep live metrics updated by WebSocket
   useEffect(() => {
     const socket = getSocket();
-    const onCongestion = (data: TrafficMetric[]) =>
-      setLiveMetrics([...data].sort((a, b) => b.congestionScore - a.congestionScore));
+    const onCongestion = (data: TrafficMetric[]) => setLiveMetrics(data);
     socket.on("traffic:congestion", onCongestion);
     return () => { socket.off("traffic:congestion", onCongestion); };
   }, []);
 
-  // Map from cameraId → live metric for O(1) lookups
-  const liveScoreMap = useMemo(() => {
+  // Deduplicate by cameraId — keep the row with the highest congestion score per camera,
+  // then sort descending. The socket may send per-lane rows for the same camera.
+  const dedupedLive = useMemo(() => {
     const map: Record<string, TrafficMetric> = {};
-    liveMetrics.forEach((m) => { map[m.cameraId] = m; });
-    return map;
+    liveMetrics.forEach((m) => {
+      if (!map[m.cameraId] || m.congestionScore > map[m.cameraId].congestionScore) {
+        map[m.cameraId] = m;
+      }
+    });
+    return Object.values(map).sort((a, b) => b.congestionScore - a.congestionScore);
   }, [liveMetrics]);
 
+  // Map from cameraId → live metric for O(1) lookups in API mode
+  const liveScoreMap = useMemo(() => {
+    const map: Record<string, TrafficMetric> = {};
+    dedupedLive.forEach((m) => { map[m.cameraId] = m; });
+    return map;
+  }, [dedupedLive]);
+
   const hasApiSegments = Boolean(metricsSummary?.top_segments?.length);
-  const hasLive = liveMetrics.length > 0;
+  const hasLive = dedupedLive.length > 0;
 
   const openModal = (cameraId: string) => { setSelectedCamera(cameraId); setModalOpen(true); };
 
@@ -146,7 +158,7 @@ export default function CongestedSegmentsTable({ metricsSummary }: CongestedSegm
                 );
               })
             ) : hasLive ? (
-              liveMetrics.map((m) => {
+              dedupedLive.map((m) => {
                 const style = LEVEL_STYLE[m.congestionLevel] ?? LEVEL_STYLE.LOW;
                 const score = Math.round(m.congestionScore * 100);
                 const location = getCameraLocation(m.cameraId);

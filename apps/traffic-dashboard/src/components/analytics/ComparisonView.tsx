@@ -19,17 +19,18 @@ const DeltaIndicator = ({ delta, label }: { delta: number; label: string }) => {
 };
 
 export default function ComparisonView({ onClose }: Props) {
+    // Default Range A = last 24 h, Range B = 24–48 h ago (within seeded data window)
     const [aFrom, setAFrom] = useState(
-        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0]
     );
     const [aTo, setATo] = useState(
-        new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        new Date().toISOString().split("T")[0]
     );
     const [bFrom, setBFrom] = useState(
-        new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString().split("T")[0]
     );
     const [bTo, setBTo] = useState(
-        new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
+        new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split("T")[0]
     );
 
     const { data: comparison, loading, error } = useAnalyticsComparison(

@@ -3,9 +3,14 @@
 import { useMemo, useState } from "react";
 
 const CAMERA_ROADS: Record<string, string> = {
-    cam1: "Galle Road", cam2: "High Level Road", cam3: "Kandy Road",
-    cam4: "Nugegoda Junction", cam5: "Rajagiriya", cam6: "Borella Junction",
-    cam7: "Maradana", cam8: "Pettah Bus Terminal",
+    cam1: "Galle Road",      cam_01: "Galle Road",
+    cam2: "High Level Road", cam_02: "High Level Road",
+    cam3: "Kandy Road",      cam_03: "Kandy Road",
+    cam4: "Nugegoda Junction", cam_04: "Nugegoda Junction",
+    cam5: "Rajagiriya",      cam_05: "Rajagiriya",
+    cam6: "Borella Junction", cam_06: "Borella Junction",
+    cam7: "Maradana",        cam_07: "Maradana",
+    cam8: "Pettah Bus Terminal", cam_08: "Pettah Bus Terminal",
 };
 import KPIRow from "@/components/analytics/KPIRow";
 import CongestionIndexChart from "@/components/analytics/CongestionIndexChart";
