@@ -51,14 +51,30 @@ function normalizeCongestionLevel(level?: string | null): CongestionLevel | unde
 
 function deriveStats(metrics: TrafficMetric[]) {
   if (!metrics.length) return null;
-  const avgSpeed = metrics.reduce((s, m) => s + m.averageSpeedKmh, 0) / metrics.length;
-  const maxLevel = metrics.reduce<TrafficMetric["congestionLevel"]>((max, m) =>
+
+  // Deduplicate by cameraId — keep the row with the highest congestion score per camera.
+  // Socket sends per-lane rows for the same camera; counting each lane inflates incidents.
+  const cameraMap: Record<string, TrafficMetric> = {};
+  for (const m of metrics) {
+    if (!cameraMap[m.cameraId] || m.congestionScore > cameraMap[m.cameraId].congestionScore) {
+      cameraMap[m.cameraId] = m;
+    }
+  }
+  const deduped = Object.values(cameraMap);
+
+  const avgSpeed = deduped.reduce((s, m) => s + m.averageSpeedKmh, 0) / deduped.length;
+  const maxLevel = deduped.reduce<TrafficMetric["congestionLevel"]>((max, m) =>
     LEVEL_ORDER[m.congestionLevel] > LEVEL_ORDER[max] ? m.congestionLevel : max, "LOW");
-  const incidents = metrics.filter(
-    (m) => m.congestionLevel === "HIGH" || m.congestionLevel === "SEVERE"
+
+  // Cross-validate: only count a camera as an incident when the level label is
+  // corroborated by the numeric score. Prevents label/score mismatches from the seeder.
+  const incidents = deduped.filter((m) =>
+    (m.congestionLevel === "SEVERE" && m.congestionScore >= 0.80) ||
+    (m.congestionLevel === "HIGH"   && m.congestionScore >= 0.55)
   ).length;
+
   // REQ-DR-004: detect stale data (>30s since last windowEnd)
-  const latest = metrics
+  const latest = deduped
     .map((m) => (m.windowEnd ? new Date(m.windowEnd).getTime() : 0))
     .reduce((a, b) => Math.max(a, b), 0);
   const stale = latest > 0 && Date.now() - latest > 30_000;
